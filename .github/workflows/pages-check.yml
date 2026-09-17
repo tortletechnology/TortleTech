@@ -1,0 +1,29 @@
+name: Pages site check
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Assemble and verify public site
+        run: |
+          set -euo pipefail
+          mkdir -p _site/redactor
+          cp index.html 404.html .nojekyll _site/
+          cp redactor/index.html _site/redactor/index.html
+          test -f _site/index.html
+          test -f _site/redactor/index.html
+          grep -F -q 'https://buy.stripe.com/5kQ14m2GL6sWeAB7n3gnK03' _site/redactor/index.html
+          grep -F -q 'var STRIPE_PAYMENT_LINK' _site/redactor/index.html
+          if grep -RIiqE '\b(joe|joey|lacy|jhlacy|joeylazy)\b' index.html 404.html README.md redactor; then
+            echo "Brand lock failed: personal-name token found"
+            exit 1
+          fi
+          echo "Site assemble OK — /redactor/ ready"

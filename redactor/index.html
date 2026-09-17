@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TortleTech Redactor — Offline Screenshot Redaction</title>
+  <meta name="description" content="Production offline screenshot redactor by TortleTech. Paste or drop an image, draw opaque boxes, undo, export flattened PNG. Nothing leaves your browser." />
+  <meta name="theme-color" content="#0b1220" />
+  <link rel="canonical" href="https://tortletechnology.github.io/TortleTech/redactor/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="TortleTech Redactor — Offline Screenshot Redaction" />
+  <meta property="og:description" content="Paste or drop a screenshot, cover secrets with opaque boxes, export a flattened PNG. 100% in-browser. Preview is free; unlock full export via Stripe." />
+  <meta property="og:url" content="https://tortletechnology.github.io/TortleTech/redactor/" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:site" content="@TORTLE420" />
+  <meta name="twitter:title" content="TortleTech Redactor" />
+  <meta name="twitter:description" content="Offline opaque-box screenshot redaction. Preview free, one-time unlock for clean full-res PNG." />
+  <style>
+    :root {
+      --bg: #070b14;
+      --bg-2: #0d1524;
+      --panel: #121b2c;
+      --panel-2: #182338;
+      --border: #27344c;
+      --border-strong: #3a4d6d;
+      --text: #eef3fb;
+      --muted: #92a0b8;
+      --faint: #6b7a94;
+      --accent: #4f8cff;
+      --accent-2: #7c5cff;
+      --accent-hover: #3b78f0;
+      --good: #22c55e;
+      --good-bg: #12301f;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --gold: #fbbf24;
+      --radius: 14px;
+      --radius-sm: 10px;
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+      --font: "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+      --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(79, 140, 255, 0.18), transparent 55%),
+        radial-gradient(900px 500px at 95% 0%, rgba(124, 92, 255, 0.14), transparent 50%),
+        radial-gradient(800px 400px at 50% 110%, rgba(34, 197, 94, 0.06), transparent 45%),
+        var(--bg);
+      line-height: 1.5;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    button, input, select { font: inherit; }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      backdrop-filter: blur(14px);
+      background: rgba(7, 11, 20, 0.82);
+      border-bottom: 1px solid var(--border);
+      padding: 0.85rem 1.25rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem 1.25rem;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 11px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      box-shadow: 0 8px 24px rgba(79, 140, 255, 0.35);
+      flex-shrink: 0;
+    }
+    .brand-text strong {
+      display: block;
+      font-size: 1.05rem;
+      letter-spacing: -0.02em;
+    }
+    .brand-text span {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      padding: 0.28rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      background: rgba(255,255,255,0.03);
+    }
+    .badge.live {
+      color: #bbf7d0;
+      border-color: #166534;
+      background: var(--good-bg);
+    }
+    .badge.locked {
+      color: #fde68a;
+      border-color: #854d0e;
+      background: #2a1f08;
+    }
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      padding: 0.5rem 0.9rem;
+      border-radius: 9px;
+      font-size: 0.875rem;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .btn:hover:not(:disabled) {
+      border-color: var(--border-strong);
+      background: var(--panel-2);
+      text-decoration: none;
+    }
+    .btn:active:not(:disabled) { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.42; cursor: not-allowed; }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #3b6fe8);
+      border-color: transparent;
+      color: #fff;
+      font-weight: 650;
+      box-shadow: 0 8px 22px rgba(79, 140, 255, 0.28);
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, var(--accent-hover), #355fd0);
+      border-color: transparent;
+    }
+    .btn-good {
+      background: linear-gradient(135deg, #16a34a, #15803d);
+      border-color: transparent;
+      color: #fff;
+      font-weight: 650;
+    }
+    .btn-good:hover:not(:disabled) {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border-color: transparent;
+    }
+    .btn-gold {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      border-color: transparent;
+      color: #111;
+      font-weight: 700;
+      box-shadow: 0 8px 22px rgba(245, 158, 11, 0.25);
+    }
+    .btn-gold:hover:not(:disabled) {
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      border-color: transparent;
+    }
+    .btn-ghost {
+      background: transparent;
+    }
+    .btn-danger {
+      border-color: #7f1d1d;
+      color: #fecaca;
+      background: #2a1212;
+    }
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 1.25rem 1.25rem 2.5rem;
+      display: grid;
+      gap: 1rem;
+    }
+    .hero {
+      display: grid;
+      gap: 0.55rem;
+      padding: 0.25rem 0.15rem 0.35rem;
+    }
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(1.45rem, 2.4vw, 1.9rem);
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+    }
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 52rem;
+      font-size: 0.95rem;
+    }
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.25rem;
+    }
+    .pill {
+      font-size: 0.75rem;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.03);
+      border-radius: 999px;
+      padding: 0.22rem 0.6rem;
+    }
+    .workspace {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 980px) {
+      .workspace {
+        grid-template-columns: 1fr 300px;
+        align-items: start;
+      }
+    }
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 40%), var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      padding: 0.85rem;
+    }
+    .toolbar label {
+      font-size: 0.78rem;
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .toolbar input[type="color"] {
+      width: 2.1rem;
+      height: 1.85rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+    .toolbar input[type="range"] { width: 88px; accent-color: var(--accent); }
+    .sep {
+      width: 1px;
+      height: 1.55rem;
+      background: var(--border);
+      margin: 0 0.1rem;
+    }
+    .swatches { display: inline-flex; gap: 0.3rem; }
+    .swatch {
+      width: 1.35rem;
+      height: 1.35rem;
+      border-radius: 6px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      padding: 0;
+    }
+    .swatch.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .swatch[data-c="#000000"] { background: #000; }
+    .swatch[data-c="#111827"] { background: #111827; }
+    .swatch[data-c="#ffffff"] { background: #fff; }
+    .swatch[data-c="#ef4444"] { background: #ef4444; }
+    .status {
+      font-size: 0.82rem;
+      color: var(--muted);
+      min-height: 1.25em;
+      padding: 0 0.15rem;
+    }
+    .status strong { color: var(--text); font-weight: 600; }
+    .stage-wrap {
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(45deg, #0a101a 25%, transparent 25%),
+        linear-gradient(-45deg, #0a101a 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #0a101a 75%),
+        linear-gradient(-45deg, transparent 75%, #0a101a 75%);
+      background-size: 24px 24px;
+      background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+      background-color: #060a12;
+      min-height: 380px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+      position: relative;
+    }
+    .stage-wrap.dragover {
+      border-color: var(--accent);
+      box-shadow: inset 0 0 0 1px rgba(79,140,255,0.35);
+    }
+    .stage-wrap.has-image { border-style: solid; border-color: var(--border); }
+    #dropHint {
+      text-align: center;
+      padding: 2.2rem 1.5rem;
+      color: var(--muted);
+      max-width: 30rem;
+    }
+    #dropHint h2 {
+      margin: 0 0 0.5rem;
+      color: var(--text);
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
+    }
+    #dropHint p { margin: 0.35rem 0; font-size: 0.92rem; }
+    #dropHint kbd {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 0.08rem 0.4rem;
+      font-family: var(--mono);
+      font-size: 0.82em;
+      color: var(--text);
+    }
+    #canvas {
+      display: none;
+      max-width: 100%;
+      height: auto;
+      cursor: crosshair;
+      touch-action: none;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    }
+    .stage-wrap.has-image #canvas { display: block; }
+    .stage-wrap.has-image #dropHint { display: none; }
+    .side {
+      display: grid;
+      gap: 0.85rem;
+    }
+    .side-card {
+      padding: 1rem 1.05rem;
+    }
+    .side-card h3 {
+      margin: 0 0 0.4rem;
+      font-size: 0.92rem;
+      letter-spacing: -0.01em;
+    }
+    .side-card p {
+      margin: 0 0 0.85rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .side-card ul {
+      margin: 0 0 0.9rem;
+      padding-left: 1.1rem;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    .side-card li { margin: 0.25rem 0; }
+    .price {
+      display: flex;
+      align-items: baseline;
+      gap: 0.4rem;
+      margin-bottom: 0.75rem;
+    }
+    .price .amt {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      background: linear-gradient(135deg, #fde68a, #f59e0b);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .price .note { font-size: 0.8rem; color: var(--muted); }
+    .unlock-box {
+      display: grid;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border);
+    }
+    .unlock-box label {
+      font-size: 0.75rem;
+      color: var(--faint);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .unlock-row {
+      display: flex;
+      gap: 0.4rem;
+    }
+    .unlock-row input {
+      flex: 1;
+      min-width: 0;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 0.5rem 0.65rem;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+    }
+    .unlock-row input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79,140,255,0.18);
+    }
+    .shortcuts {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .shortcuts div {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.28rem 0;
+      border-bottom: 1px solid rgba(39,52,76,0.55);
+    }
+    .shortcuts div:last-child { border-bottom: 0; }
+    .shortcuts kbd {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.05rem 0.35rem;
+    }
+    footer {
+      text-align: center;
+      padding: 0.5rem 1rem 2rem;
+      font-size: 0.78rem;
+      color: var(--faint);
+    }
+    #fileInput { display: none; }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 6, 12, 0.72);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      width: min(440px, 100%);
+      background: linear-gradient(180deg, #182338, #121b2c);
+      border: 1px solid var(--border-strong);
+      border-radius: 18px;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.55);
+      padding: 1.35rem 1.35rem 1.2rem;
+    }
+    .modal h2 {
+      margin: 0 0 0.4rem;
+      font-size: 1.2rem;
+      letter-spacing: -0.02em;
+    }
+    .modal p {
+      margin: 0 0 0.85rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .modal .features {
+      margin: 0 0 1rem;
+      padding: 0.75rem 0.85rem;
+      border-radius: 12px;
+      background: rgba(0,0,0,0.22);
+      border: 1px solid var(--border);
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
+    .modal .features li { margin: 0.3rem 0; }
+    .modal-actions {
+      display: grid;
+      gap: 0.5rem;
+    }
+    .modal-actions .btn { width: 100%; }
+    .modal-foot {
+      margin-top: 0.85rem;
+      font-size: 0.75rem;
+      color: var(--faint);
+      text-align: center;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 1.25rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(120%);
+      background: var(--panel-2);
+      border: 1px solid var(--border-strong);
+      color: var(--text);
+      padding: 0.7rem 1rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      box-shadow: var(--shadow);
+      z-index: 120;
+      transition: transform 0.25s ease;
+      max-width: calc(100% - 2rem);
+      text-align: center;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.ok { border-color: #166534; background: #12301f; }
+
+    @media (max-width: 640px) {
+      .sep { display: none; }
+      .toolbar { gap: 0.4rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true">TT</div>
+      <div class="brand-text">
+        <strong>TortleTech Redactor</strong>
+        <span>Offline-first · opaque boxes · flattened PNG export</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span class="badge locked" id="licenseBadge">Preview export</span>
+      <a class="btn btn-ghost" id="btnBuyHeader" href="#" target="_blank" rel="noopener">Unlock full export</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Redact screenshots before they leave your machine</h1>
+      <p>
+        Paste or drop an image, draw solid opaque boxes over secrets, undo mistakes, and export a flattened PNG.
+        Processing stays in your browser — no uploads, no accounts, no tracking.
+      </p>
+      <div class="pill-row">
+        <span class="pill">100% client-side</span>
+        <span class="pill">Opaque cover (not blur)</span>
+        <span class="pill">Undo / clear</span>
+        <span class="pill">Touch + keyboard</span>
+      </div>
+    </section>
+
+    <div class="workspace">
+      <div class="editor">
+        <div class="panel toolbar">
+          <button type="button" class="btn btn-primary" id="btnOpen">Open image</button>
+          <button type="button" class="btn" id="btnPaste" title="Or press Ctrl/Cmd+V">Paste</button>
+          <div class="sep"></div>
+          <label>Fill <input type="color" id="fillColor" value="#000000" /></label>
+          <div class="swatches" role="group" aria-label="Color presets">
+            <button type="button" class="swatch active" data-c="#000000" title="Black"></button>
+            <button type="button" class="swatch" data-c="#111827" title="Charcoal"></button>
+            <button type="button" class="swatch" data-c="#ffffff" title="White"></button>
+            <button type="button" class="swatch" data-c="#ef4444" title="Red"></button>
+          </div>
+          <label>Stroke <input type="range" id="strokeW" min="0" max="8" value="0" /> <span id="strokeVal">0</span>px</label>
+          <div class="sep"></div>
+          <button type="button" class="btn" id="btnUndo" disabled>Undo</button>
+          <button type="button" class="btn" id="btnRedo" disabled>Redo</button>
+          <button type="button" class="btn btn-danger" id="btnClear" disabled>Clear boxes</button>
+          <button type="button" class="btn btn-good" id="btnExport" disabled>Export PNG</button>
+          <input type="file" id="fileInput" accept="image/*" />
+        </div>
+
+        <p class="status" id="status">Ready — drop an image or press <strong>Ctrl/Cmd+V</strong></p>
+
+        <div class="stage-wrap" id="stage">
+          <div id="dropHint">
+            <h2>Drop a screenshot here</h2>
+            <p>or click <strong>Open</strong> · or paste with <kbd>Ctrl</kbd>+<kbd>V</kbd> / <kbd>⌘</kbd>+<kbd>V</kbd></p>
+            <p style="margin-top:1rem;font-size:0.85em">Click and drag to draw solid redaction boxes. <kbd>Esc</kbd> cancels an in-progress box.</p>
+          </div>
+          <canvas id="canvas" width="800" height="450"></canvas>
+        </div>
+      </div>
+
+      <aside class="side">
+        <div class="panel side-card" id="paywallCard">
+          <h3>Full-quality export</h3>
+          <p>Preview mode exports a watermarked PNG. Unlock once for clean, full-resolution downloads on this browser.</p>
+          <div class="price">
+            <span class="amt">$29</span>
+            <span class="note">one-time · suggested</span>
+          </div>
+          <ul>
+            <li>Clean PNG — no watermark</li>
+            <li>Full original resolution</li>
+            <li>License stored locally on this device</li>
+            <li>Same offline redaction engine</li>
+          </ul>
+          <a class="btn btn-gold" id="btnBuy" href="#" target="_blank" rel="noopener">Unlock with Stripe →</a>
+          <div class="unlock-box">
+            <label for="licenseInput">Already purchased?</label>
+            <div class="unlock-row">
+              <input id="licenseInput" type="text" placeholder="Enter unlock code" autocomplete="off" spellcheck="false" />
+              <button type="button" class="btn" id="btnUnlock">Unlock</button>
+            </div>
+            <p style="margin:0;font-size:0.75rem;color:var(--faint)">After checkout, return here and enter the code from your receipt / success page. Codes also work via <code>?license=</code> in the URL.</p>
+          </div>
+        </div>
+
+        <div class="panel side-card" id="unlockedCard" hidden>
+          <h3>Full export unlocked</h3>
+          <p>This browser can download clean, full-resolution PNGs. Redaction still never leaves your device.</p>
+          <button type="button" class="btn" id="btnLockAgain" title="For testing / shared machines">Clear local license</button>
+        </div>
+
+        <div class="panel side-card">
+          <h3>Shortcuts</h3>
+          <div class="shortcuts">
+            <div><span>Paste image</span><span><kbd>Ctrl/⌘</kbd>+<kbd>V</kbd></span></div>
+            <div><span>Undo box</span><span><kbd>Ctrl/⌘</kbd>+<kbd>Z</kbd></span></div>
+            <div><span>Redo box</span><span><kbd>Ctrl/⌘</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span></div>
+            <div><span>Cancel draw</span><span><kbd>Esc</kbd></span></div>
+            <div><span>Export</span><span><kbd>Ctrl/⌘</kbd>+<kbd>S</kbd></span></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    TortleTech Redactor · Runs entirely in your browser · No analytics · No accounts · © TortleTech
+  </footer>
+
+  <div class="modal-backdrop" id="paywallModal" role="dialog" aria-modal="true" aria-labelledby="paywallTitle">
+    <div class="modal">
+      <h2 id="paywallTitle">Unlock full-quality export</h2>
+      <p>Preview exports include a TortleTech watermark. Unlock for clean, full-resolution PNGs — one-time purchase.</p>
+      <ul class="features">
+        <li>No watermark on downloads</li>
+        <li>Keeps original pixel dimensions</li>
+        <li>Offline redaction stays on-device</li>
+        <li>Suggested price: <strong style="color:var(--text)">$29</strong> one-time</li>
+      </ul>
+      <div class="modal-actions">
+        <a class="btn btn-gold" id="btnBuyModal" href="#" target="_blank" rel="noopener">Continue to Stripe checkout</a>
+        <button type="button" class="btn" id="btnPreviewExport">Export watermarked preview instead</button>
+        <button type="button" class="btn btn-ghost" id="btnCloseModal">Not now</button>
+      </div>
+      <p class="modal-foot">Stripe Payment Link is configured as <code>STRIPE_PAYMENT_LINK</code> in this file. Swap when you publish a $29 product.</p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+(function () {
+  "use strict";
+
+  /**
+   * TortleTech Redactor — config
+   * Swap STRIPE_PAYMENT_LINK when you publish a new pricing-tier Payment Link.
+   * Current default: live TortleTech Redactor checkout.
+   * Documented in README.md — swap instructions for other tiers.
+   */
+  var STRIPE_PAYMENT_LINK = "https://buy.stripe.com/5kQ14m2GL6sWeAB7n3gnK03";
+
+  /** Accepted unlock codes (case-insensitive). Put the code you email after Stripe payment here. */
+  var VALID_LICENSE_CODES = [
+    "TORTLETECH-REDACTOR",
+    "TT-REDACTOR-FULL",
+    "TORTLETECH29"
+  ];
+
+  var LICENSE_STORAGE_KEY = "tortletech_redactor_license_v1";
+
+  var canvas = document.getElementById("canvas");
+  var ctx = canvas.getContext("2d");
+  var stage = document.getElementById("stage");
+  var statusEl = document.getElementById("status");
+  var fileInput = document.getElementById("fileInput");
+  var fillColor = document.getElementById("fillColor");
+  var strokeW = document.getElementById("strokeW");
+  var strokeVal = document.getElementById("strokeVal");
+  var licenseBadge = document.getElementById("licenseBadge");
+  var paywallCard = document.getElementById("paywallCard");
+  var unlockedCard = document.getElementById("unlockedCard");
+  var paywallModal = document.getElementById("paywallModal");
+  var licenseInput = document.getElementById("licenseInput");
+  var toastEl = document.getElementById("toast");
+
+  var btnOpen = document.getElementById("btnOpen");
+  var btnPaste = document.getElementById("btnPaste");
+  var btnUndo = document.getElementById("btnUndo");
+  var btnRedo = document.getElementById("btnRedo");
+  var btnClear = document.getElementById("btnClear");
+  var btnExport = document.getElementById("btnExport");
+  var btnUnlock = document.getElementById("btnUnlock");
+  var btnLockAgain = document.getElementById("btnLockAgain");
+  var btnBuy = document.getElementById("btnBuy");
+  var btnBuyHeader = document.getElementById("btnBuyHeader");
+  var btnBuyModal = document.getElementById("btnBuyModal");
+  var btnPreviewExport = document.getElementById("btnPreviewExport");
+  var btnCloseModal = document.getElementById("btnCloseModal");
+
+  var img = null;
+  var boxes = [];
+  var redoStack = [];
+  var drawing = false;
+  var startX = 0;
+  var startY = 0;
+  var curX = 0;
+  var curY = 0;
+  var licensed = false;
+  var toastTimer = null;
+
+  function setStripeHrefs() {
+    [btnBuy, btnBuyHeader, btnBuyModal].forEach(function (el) {
+      if (el) el.href = STRIPE_PAYMENT_LINK;
+    });
+  }
+
+  function normalizeCode(code) {
+    return String(code || "").trim().toUpperCase().replace(/\s+/g, "");
+  }
+
+  function isValidCode(code) {
+    var n = normalizeCode(code);
+    return VALID_LICENSE_CODES.some(function (c) {
+      return normalizeCode(c) === n;
+    });
+  }
+
+  function showToast(msg, ok) {
+    toastEl.textContent = msg;
+    toastEl.classList.toggle("ok", !!ok);
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      toastEl.classList.remove("show");
+    }, 3200);
+  }
+
+  function setLicensed(on, code) {
+    licensed = !!on;
+    if (licensed) {
+      try {
+        localStorage.setItem(LICENSE_STORAGE_KEY, code || "UNLOCKED");
+      } catch (e) { /* ignore */ }
+      licenseBadge.textContent = "Full export";
+      licenseBadge.classList.remove("locked");
+      licenseBadge.classList.add("live");
+      paywallCard.hidden = true;
+      unlockedCard.hidden = false;
+      btnBuyHeader.style.display = "none";
+    } else {
+      try {
+        localStorage.removeItem(LICENSE_STORAGE_KEY);
+      } catch (e) { /* ignore */ }
+      licenseBadge.textContent = "Preview export";
+      licenseBadge.classList.add("locked");
+      licenseBadge.classList.remove("live");
+      paywallCard.hidden = false;
+      unlockedCard.hidden = true;
+      btnBuyHeader.style.display = "";
+    }
+  }
+
+  function restoreLicense() {
+    var params = new URLSearchParams(window.location.search);
+    var fromUrl = params.get("license") || params.get("code") || params.get("unlock");
+    if (fromUrl && isValidCode(fromUrl)) {
+      setLicensed(true, normalizeCode(fromUrl));
+      showToast("License unlocked from URL.", true);
+      try {
+        var clean = window.location.pathname + window.location.hash;
+        history.replaceState({}, "", clean);
+      } catch (e) { /* ignore */ }
+      return;
+    }
+    if (params.get("unlocked") === "1" || params.get("success") === "1") {
+      // Stripe success URL convenience: treat as unlock with default code
+      setLicensed(true, "TORTLETECH-REDACTOR");
+      showToast("Welcome back — full export unlocked.", true);
+      try {
+        var clean2 = window.location.pathname + window.location.hash;
+        history.replaceState({}, "", clean2);
+      } catch (e) { /* ignore */ }
+      return;
+    }
+    try {
+      var stored = localStorage.getItem(LICENSE_STORAGE_KEY);
+      if (stored) setLicensed(true, stored);
+      else setLicensed(false);
+    } catch (e) {
+      setLicensed(false);
+    }
+  }
+
+  function setStatus(msg) {
+    statusEl.innerHTML = msg;
+  }
+
+  function updateButtons() {
+    var has = !!img;
+    btnUndo.disabled = !has || boxes.length === 0;
+    btnRedo.disabled = !has || redoStack.length === 0;
+    btnClear.disabled = !has || boxes.length === 0;
+    btnExport.disabled = !has;
+  }
+
+  function canvasPoint(e) {
+    var rect = canvas.getBoundingClientRect();
+    var scaleX = canvas.width / rect.width;
+    var scaleY = canvas.height / rect.height;
+    var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
+    };
+  }
+
+  function drawBoxes(targetCtx, list) {
+    list.forEach(function (b) {
+      targetCtx.fillStyle = b.color;
+      targetCtx.fillRect(b.x, b.y, b.w, b.h);
+      if (b.stroke > 0) {
+        targetCtx.strokeStyle = b.color;
+        targetCtx.lineWidth = b.stroke;
+        targetCtx.strokeRect(b.x, b.y, b.w, b.h);
+      }
+    });
+  }
+
+  function redraw() {
+    if (!img) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+    drawBoxes(ctx, boxes);
+    if (drawing) {
+      var x = Math.min(startX, curX);
+      var y = Math.min(startY, curY);
+      var w = Math.abs(curX - startX);
+      var h = Math.abs(curY - startY);
+      var color = fillColor.value;
+      var sw = Number(strokeW.value) || 0;
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.82;
+      ctx.fillRect(x, y, w, h);
+      ctx.globalAlpha = 1;
+      if (sw > 0) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = sw;
+        ctx.strokeRect(x, y, w, h);
+      }
+    }
+  }
+
+  function loadImageFromFile(file) {
+    if (!file || !file.type || !file.type.startsWith("image/")) {
+      setStatus("That file isn’t an image. Try PNG, JPG, or WebP.");
+      return;
+    }
+    var url = URL.createObjectURL(file);
+    var image = new Image();
+    image.onload = function () {
+      URL.revokeObjectURL(url);
+      img = image;
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      boxes = [];
+      redoStack = [];
+      drawing = false;
+      stage.classList.add("has-image");
+      redraw();
+      updateButtons();
+      setStatus("Loaded <strong>" + canvas.width + "×" + canvas.height + "</strong>. Drag to draw redaction boxes.");
+    };
+    image.onerror = function () {
+      URL.revokeObjectURL(url);
+      setStatus("Couldn’t load that image.");
+    };
+    image.src = url;
+  }
+
+  function loadImageFromBlob(blob) {
+    loadImageFromFile(blob);
+  }
+
+  function openPaywall() {
+    paywallModal.classList.add("open");
+  }
+
+  function closePaywall() {
+    paywallModal.classList.remove("open");
+  }
+
+  function applyWatermark(exportCanvas) {
+    var w = exportCanvas.width;
+    var h = exportCanvas.height;
+    var ectx = exportCanvas.getContext("2d");
+    ectx.save();
+    ectx.fillStyle = "rgba(7, 11, 20, 0.42)";
+    ectx.fillRect(0, 0, w, h);
+    ectx.translate(w / 2, h / 2);
+    ectx.rotate(-Math.PI / 6);
+    ectx.textAlign = "center";
+    ectx.textBaseline = "middle";
+    var size = Math.max(28, Math.min(w, h) * 0.08);
+    ectx.font = "700 " + size + "px Segoe UI, system-ui, sans-serif";
+    ectx.fillStyle = "rgba(238, 243, 251, 0.55)";
+    ectx.fillText("TortleTech Redactor — Preview", 0, -size * 0.35);
+    ectx.font = "600 " + Math.max(14, size * 0.45) + "px Segoe UI, system-ui, sans-serif";
+    ectx.fillStyle = "rgba(251, 191, 36, 0.7)";
+    ectx.fillText("Unlock full export", 0, size * 0.55);
+    ectx.restore();
+  }
+
+  function doExport(forcePreview) {
+    if (!img) return;
+    drawing = false;
+    redraw();
+
+    var usePreview = forcePreview || !licensed;
+    var exportCanvas = document.createElement("canvas");
+    exportCanvas.width = canvas.width;
+    exportCanvas.height = canvas.height;
+    var ectx = exportCanvas.getContext("2d");
+    ectx.drawImage(canvas, 0, 0);
+
+    if (usePreview) {
+      applyWatermark(exportCanvas);
+      // Mild downscale for free preview to reserve full quality for paid
+      if (Math.max(exportCanvas.width, exportCanvas.height) > 1280) {
+        var scale = 1280 / Math.max(exportCanvas.width, exportCanvas.height);
+        var scaled = document.createElement("canvas");
+        scaled.width = Math.round(exportCanvas.width * scale);
+        scaled.height = Math.round(exportCanvas.height * scale);
+        scaled.getContext("2d").drawImage(exportCanvas, 0, 0, scaled.width, scaled.height);
+        exportCanvas = scaled;
+      }
+    }
+
+    exportCanvas.toBlob(function (blob) {
+      if (!blob) {
+        setStatus("Export failed — try another browser.");
+        return;
+      }
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = (usePreview ? "preview-redacted-" : "redacted-") + Date.now() + ".png";
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 2500);
+      setStatus(usePreview
+        ? "Downloaded <strong>watermarked preview</strong>. Unlock for clean full-res PNG."
+        : "Downloaded <strong>full-quality PNG</strong>. Image never left your device.");
+      showToast(usePreview ? "Preview PNG downloaded." : "Full-quality PNG downloaded.", !usePreview);
+    }, "image/png");
+  }
+
+  function requestExport() {
+    if (!img) return;
+    if (licensed) {
+      doExport(false);
+    } else {
+      openPaywall();
+    }
+  }
+
+  // --- UI wiring ---
+  setStripeHrefs();
+  restoreLicense();
+
+  btnOpen.addEventListener("click", function () { fileInput.click(); });
+  fileInput.addEventListener("change", function () {
+    if (fileInput.files && fileInput.files[0]) {
+      loadImageFromFile(fileInput.files[0]);
+      fileInput.value = "";
+    }
+  });
+
+  btnPaste.addEventListener("click", async function () {
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.read) {
+        setStatus("Clipboard image read isn’t available — use Ctrl/Cmd+V, or Open.");
+        return;
+      }
+      var items = await navigator.clipboard.read();
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        var type = item.types.find(function (t) { return t.startsWith("image/"); });
+        if (type) {
+          var blob = await item.getType(type);
+          loadImageFromBlob(blob);
+          return;
+        }
+      }
+      setStatus("No image on the clipboard. Copy a screenshot first.");
+    } catch (err) {
+      setStatus("Paste blocked by the browser — try Ctrl/Cmd+V on the page, or Open.");
+    }
+  });
+
+  document.addEventListener("paste", function (e) {
+    var items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith("image/")) {
+        e.preventDefault();
+        loadImageFromBlob(items[i].getAsFile());
+        return;
+      }
+    }
+  });
+
+  stage.addEventListener("dragover", function (e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    stage.classList.add("dragover");
+  });
+  stage.addEventListener("dragleave", function () {
+    stage.classList.remove("dragover");
+  });
+  stage.addEventListener("drop", function (e) {
+    e.preventDefault();
+    stage.classList.remove("dragover");
+    var f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) loadImageFromFile(f);
+  });
+
+  function onPointerDown(e) {
+    if (!img) return;
+    e.preventDefault();
+    var p = canvasPoint(e);
+    drawing = true;
+    startX = curX = p.x;
+    startY = curY = p.y;
+    if (canvas.setPointerCapture && e.pointerId != null) {
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    }
+  }
+
+  function onPointerMove(e) {
+    if (!drawing || !img) return;
+    e.preventDefault();
+    var p = canvasPoint(e);
+    curX = p.x;
+    curY = p.y;
+    redraw();
+  }
+
+  function onPointerUp(e) {
+    if (!drawing || !img) return;
+    e.preventDefault();
+    drawing = false;
+    var x = Math.min(startX, curX);
+    var y = Math.min(startY, curY);
+    var w = Math.abs(curX - startX);
+    var h = Math.abs(curY - startY);
+    if (w >= 3 && h >= 3) {
+      boxes.push({
+        x: x, y: y, w: w, h: h,
+        color: fillColor.value,
+        stroke: Number(strokeW.value) || 0
+      });
+      redoStack = [];
+      setStatus("Box added (<strong>" + boxes.length + "</strong>). Undo or export when ready.");
+    }
+    redraw();
+    updateButtons();
+  }
+
+  canvas.addEventListener("pointerdown", onPointerDown);
+  canvas.addEventListener("pointermove", onPointerMove);
+  canvas.addEventListener("pointerup", onPointerUp);
+  canvas.addEventListener("pointercancel", function () {
+    drawing = false;
+    redraw();
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      if (paywallModal.classList.contains("open")) {
+        closePaywall();
+        return;
+      }
+      if (drawing) {
+        drawing = false;
+        redraw();
+        setStatus("Drawing cancelled.");
+      }
+    }
+    var mod = e.ctrlKey || e.metaKey;
+    if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) {
+      if (boxes.length) {
+        e.preventDefault();
+        redoStack.push(boxes.pop());
+        redraw();
+        updateButtons();
+        setStatus(boxes.length ? "Undid last box." : "No boxes left.");
+      }
+    }
+    if (mod && ((e.key.toLowerCase() === "z" && e.shiftKey) || e.key.toLowerCase() === "y")) {
+      if (redoStack.length) {
+        e.preventDefault();
+        boxes.push(redoStack.pop());
+        redraw();
+        updateButtons();
+        setStatus("Redid box (<strong>" + boxes.length + "</strong>).");
+      }
+    }
+    if (mod && e.key.toLowerCase() === "s") {
+      e.preventDefault();
+      requestExport();
+    }
+  });
+
+  strokeW.addEventListener("input", function () {
+    strokeVal.textContent = strokeW.value;
+  });
+  fillColor.addEventListener("input", function () {
+    document.querySelectorAll(".swatch").forEach(function (s) {
+      s.classList.toggle("active", s.getAttribute("data-c") === fillColor.value);
+    });
+    redraw();
+  });
+
+  document.querySelectorAll(".swatch").forEach(function (s) {
+    s.addEventListener("click", function () {
+      fillColor.value = s.getAttribute("data-c");
+      document.querySelectorAll(".swatch").forEach(function (x) { x.classList.remove("active"); });
+      s.classList.add("active");
+      redraw();
+    });
+  });
+
+  btnUndo.addEventListener("click", function () {
+    if (!boxes.length) return;
+    redoStack.push(boxes.pop());
+    redraw();
+    updateButtons();
+    setStatus(boxes.length ? "Undid last box." : "No boxes left.");
+  });
+
+  btnRedo.addEventListener("click", function () {
+    if (!redoStack.length) return;
+    boxes.push(redoStack.pop());
+    redraw();
+    updateButtons();
+    setStatus("Redid box (<strong>" + boxes.length + "</strong>).");
+  });
+
+  btnClear.addEventListener("click", function () {
+    if (!boxes.length) return;
+    redoStack = [];
+    boxes = [];
+    redraw();
+    updateButtons();
+    setStatus("Cleared all boxes.");
+  });
+
+  btnExport.addEventListener("click", requestExport);
+  btnPreviewExport.addEventListener("click", function () {
+    closePaywall();
+    doExport(true);
+  });
+  btnCloseModal.addEventListener("click", closePaywall);
+  paywallModal.addEventListener("click", function (e) {
+    if (e.target === paywallModal) closePaywall();
+  });
+
+  btnUnlock.addEventListener("click", function () {
+    var code = licenseInput.value;
+    if (isValidCode(code)) {
+      setLicensed(true, normalizeCode(code));
+      licenseInput.value = "";
+      showToast("Full export unlocked on this browser.", true);
+      setStatus("License active — exports are clean full-resolution PNGs.");
+    } else {
+      showToast("Invalid unlock code. Check your receipt.");
+      setStatus("That unlock code isn’t recognized.");
+    }
+  });
+
+  licenseInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") btnUnlock.click();
+  });
+
+  btnLockAgain.addEventListener("click", function () {
+    setLicensed(false);
+    showToast("Local license cleared.");
+    setStatus("Back to preview export mode.");
+  });
+
+  updateButtons();
+})();
+  </script>
+</body>
+</html>
