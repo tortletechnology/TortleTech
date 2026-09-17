@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TortleTech — Offline tools that stay on-device</title>
+  <meta name="description" content="TortleTech builds offline-first utilities. CSV Preflight checks spreadsheets in the browser. Pay once to repair and export." />
+  <meta name="theme-color" content="#070b14" />
+  <link rel="canonical" href="https://tortletechnology.github.io/TortleTech/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="TortleTech" />
+  <meta property="og:description" content="Offline-first tools by TortleTech / @TORTLE420. CSV Preflight is live." />
+  <meta property="og:url" content="https://tortletechnology.github.io/TortleTech/" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:site" content="@TORTLE420" />
+  <style>
+    :root {
+      --bg: #070b14;
+      --panel: #121b2c;
+      --border: #27344c;
+      --text: #eef3fb;
+      --muted: #92a0b8;
+      --accent: #2dd4bf;
+      --accent-2: #4f8cff;
+      --gold: #fbbf24;
+      --font: "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(45, 212, 191, 0.16), transparent 55%),
+        radial-gradient(900px 500px at 95% 0%, rgba(79, 140, 255, 0.14), transparent 50%),
+        var(--bg);
+      line-height: 1.5;
+    }
+    a { color: var(--accent-2); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    header, main, footer { max-width: 760px; margin: 0 auto; padding: 0 1.25rem; }
+    header {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding-top: 1.5rem; padding-bottom: 1rem;
+    }
+    .logo {
+      width: 38px; height: 38px; border-radius: 11px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: grid; place-items: center; font-weight: 800; letter-spacing: -0.04em; color: #04201c;
+      box-shadow: 0 8px 24px rgba(45, 212, 191, 0.28);
+    }
+    .brand strong { display: block; font-size: 1.05rem; }
+    .brand span { display: block; font-size: 0.78rem; color: var(--muted); }
+    h1 {
+      font-size: clamp(1.6rem, 3vw, 2.1rem);
+      letter-spacing: -0.03em; line-height: 1.2; margin: 1.5rem 0 0.6rem;
+    }
+    .lede { color: var(--muted); margin: 0 0 1.5rem; }
+    .grid { display: grid; gap: 1rem; }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 40%), var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.25rem 1.3rem 1.35rem;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+    }
+    .card.featured { border-color: #2a6b64; }
+    .card h2 { margin: 0 0 0.4rem; font-size: 1.15rem; letter-spacing: -0.02em; }
+    .card p { margin: 0 0 1rem; color: var(--muted); font-size: 0.95rem; }
+    .price { font-size: 0.85rem; color: var(--gold); font-weight: 700; margin: 0 0 1rem; }
+    .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .btn {
+      appearance: none; display: inline-flex; align-items: center; justify-content: center;
+      padding: 0.55rem 0.95rem; border-radius: 9px; font: inherit; font-size: 0.9rem; font-weight: 650;
+      border: 1px solid var(--border); background: var(--panel); color: var(--text); text-decoration: none;
+    }
+    .btn:hover { text-decoration: none; filter: brightness(1.08); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #0f766e);
+      border-color: transparent; color: #04201c;
+    }
+    .btn-gold { background: linear-gradient(135deg, #f59e0b, #d97706); border-color: transparent; color: #111; }
+    ul { margin: 0 0 1rem; padding-left: 1.15rem; color: var(--muted); font-size: 0.9rem; }
+    li { margin: 0.28rem 0; }
+    footer { text-align: center; padding: 2rem 1rem; font-size: 0.78rem; color: #6b7a94; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo" aria-hidden="true">TT</div>
+    <div class="brand">
+      <strong>TortleTech</strong>
+      <span>Offline-first tools · @TORTLE420</span>
+    </div>
+  </header>
+  <main>
+    <h1>Small tools. Local files. Live Stripe checkout.</h1>
+    <p class="lede">
+      TortleTech ships sellable utilities that run in the browser. No uploads. No accounts.
+      Pay once, keep the unlock on that machine.
+    </p>
+    <div class="grid">
+      <article class="card featured">
+        <h2>CSV Preflight</h2>
+        <p>
+          Free local scan for broken headers, ragged rows, formula-like cells, and Excel-mangled IDs.
+          Unlock conservative repair and export. Files never leave the tab.
+        </p>
+        <p class="price">$19 one-time · live Stripe Payment Link</p>
+        <ul>
+          <li>100% client-side parse + issue list</li>
+          <li>Paid: repair, cleaned CSV, repair log</li>
+          <li>Does not guarantee Shopify acceptance</li>
+        </ul>
+        <div class="actions">
+          <a class="btn btn-primary" href="csv-preflight/">Open CSV Preflight</a>
+          <a class="btn btn-gold" href="https://buy.stripe.com/cNi00i959bNg9gh22JgnK04" target="_blank" rel="noopener">Pay $19 with Stripe</a>
+        </div>
+      </article>
+      <article class="card">
+        <h2>Redactor</h2>
+        <p>
+          Opaque-box screenshot redaction in the browser. Sibling SKU on this hub when that path is published.
+        </p>
+        <p class="price">Live Stripe checkout · redactor-adjacent SKU</p>
+        <div class="actions">
+          <a class="btn" href="redactor/">Open Redactor</a>
+          <a class="btn btn-gold" href="https://buy.stripe.com/5kQ14m2GL6sWeAB7n3gnK03" target="_blank" rel="noopener">Unlock with Stripe</a>
+        </div>
+      </article>
+    </div>
+  </main>
+  <footer>© TortleTech · <a href="https://github.com/tortletechnology/TortleTech">Source</a></footer>
+</body>
+</html>

@@ -1,0 +1,36 @@
+name: Pages + brand check
+
+on:
+  push:
+    branches: ["main", "cursor/**"]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Engine tests
+        run: node csv-preflight/engine.test.js
+
+      - name: Brand lock
+        run: node scripts/brand-scan.js
+
+      - name: Assemble site like Pages
+        run: |
+          mkdir -p _site/csv-preflight
+          cp index.html 404.html .nojekyll _site/
+          cp csv-preflight/index.html csv-preflight/engine.js _site/csv-preflight/
+
+      - name: Required copy and live Stripe URL
+        run: |
+          set -euo pipefail
+          grep -q 'TortleTech' _site/index.html
+          grep -q '@TORTLE420' _site/index.html
+          grep -q 'TortleTech' _site/csv-preflight/index.html
+          grep -q '@TORTLE420' _site/csv-preflight/index.html
+          grep -q 'https://buy.stripe.com/cNi00i959bNg9gh22JgnK04' _site/csv-preflight/engine.js
+          grep -q 'https://buy.stripe.com/cNi00i959bNg9gh22JgnK04' _site/index.html
+          test -f _site/.nojekyll
+          echo "Hub + Stripe checks passed"

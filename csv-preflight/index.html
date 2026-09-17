@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TortleTech CSV Preflight — Local checker, paid repair</title>
+  <meta name="description" content="TortleTech CSV Preflight checks a spreadsheet in your browser. Free issue scan. $19 unlocks conservative repair and export. Nothing is uploaded." />
+  <meta name="theme-color" content="#070b14" />
+  <link rel="canonical" href="https://tortletechnology.github.io/TortleTech/csv-preflight/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="TortleTech CSV Preflight" />
+  <meta property="og:description" content="Free local CSV checks. Unlock $19 repair + export. Files never leave this browser." />
+  <meta property="og:url" content="https://tortletechnology.github.io/TortleTech/csv-preflight/" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:site" content="@TORTLE420" />
+  <meta name="twitter:title" content="TortleTech CSV Preflight" />
+  <meta name="twitter:description" content="Catch broken headers, ragged rows, and formula bombs before you import. Local. $19 to repair and export." />
+  <style>
+    :root {
+      --bg: #070b14;
+      --bg-2: #0d1524;
+      --panel: #121b2c;
+      --panel-2: #182338;
+      --border: #27344c;
+      --border-strong: #3a4d6d;
+      --text: #eef3fb;
+      --muted: #92a0b8;
+      --faint: #6b7a94;
+      --accent: #2dd4bf;
+      --accent-2: #4f8cff;
+      --accent-hover: #14b8a6;
+      --good: #22c55e;
+      --good-bg: #12301f;
+      --warn: #f59e0b;
+      --warn-bg: #3a2a0a;
+      --danger: #ef4444;
+      --danger-bg: #3a1418;
+      --info: #38bdf8;
+      --gold: #fbbf24;
+      --radius: 14px;
+      --radius-sm: 10px;
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+      --font: "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+      --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: var(--font);
+      color: var(--text);
+      background:
+        radial-gradient(1100px 520px at 8% -12%, rgba(45, 212, 191, 0.16), transparent 55%),
+        radial-gradient(900px 480px at 100% 0%, rgba(79, 140, 255, 0.14), transparent 50%),
+        var(--bg);
+      line-height: 1.5;
+    }
+    a { color: var(--accent-2); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    button, input { font: inherit; }
+    header {
+      position: sticky; top: 0; z-index: 40;
+      backdrop-filter: blur(14px);
+      background: rgba(7, 11, 20, 0.86);
+      border-bottom: 1px solid var(--border);
+      padding: 0.85rem 1.25rem;
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 0.75rem 1.25rem;
+    }
+    .brand { display: flex; align-items: center; gap: 0.75rem; }
+    .logo {
+      width: 38px; height: 38px; border-radius: 11px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: grid; place-items: center; font-weight: 800; letter-spacing: -0.04em;
+      box-shadow: 0 8px 24px rgba(45, 212, 191, 0.28); color: #04201c;
+    }
+    .brand strong { display: block; font-size: 1.02rem; }
+    .brand span { display: block; font-size: 0.78rem; color: var(--muted); }
+    .header-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .pill {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+      padding: 0.28rem 0.55rem; border-radius: 999px; border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .pill.on { color: #04201c; background: var(--accent); border-color: transparent; }
+    .btn {
+      appearance: none; display: inline-flex; align-items: center; justify-content: center;
+      padding: 0.55rem 0.95rem; border-radius: 9px; font-size: 0.9rem; font-weight: 650;
+      border: 1px solid var(--border); background: var(--panel); color: var(--text); cursor: pointer;
+      text-decoration: none; gap: 0.35rem;
+    }
+    .btn:hover { text-decoration: none; filter: brightness(1.08); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), #0f766e); border-color: transparent; color: #04201c; }
+    .btn-gold { background: linear-gradient(135deg, #f59e0b, #d97706); border-color: transparent; color: #111; }
+    .btn-ghost { background: transparent; }
+    main { max-width: 1120px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+    .hero { display: grid; grid-template-columns: 1.3fr 0.9fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+    @media (max-width: 860px) { .hero { grid-template-columns: 1fr; } }
+    h1 { font-size: clamp(1.7rem, 3vw, 2.25rem); letter-spacing: -0.03em; line-height: 1.15; margin: 0 0 0.6rem; }
+    .lede { color: var(--muted); margin: 0 0 1rem; max-width: 40rem; }
+    .hero-card, .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent 40%), var(--panel);
+      border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
+    }
+    .hero-card { padding: 1.2rem 1.25rem; }
+    .hero-card h2 { margin: 0 0 0.35rem; font-size: 1.05rem; }
+    .price-row { display: flex; align-items: baseline; gap: 0.5rem; margin: 0.4rem 0 0.8rem; }
+    .price-row .amt { font-size: 1.8rem; font-weight: 800; color: var(--gold); letter-spacing: -0.03em; }
+    .price-row span { color: var(--muted); font-size: 0.88rem; }
+    .hero-card ul { margin: 0 0 1rem; padding-left: 1.1rem; color: var(--muted); font-size: 0.9rem; }
+    .drop {
+      border: 1.5px dashed var(--border-strong); border-radius: var(--radius);
+      background: rgba(18, 27, 44, 0.65); padding: 1.4rem; text-align: center; cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .drop.drag { border-color: var(--accent); background: rgba(45, 212, 191, 0.08); }
+    .drop strong { display: block; margin-bottom: 0.25rem; }
+    .drop p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+    .row-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-top: 0.9rem; }
+    textarea {
+      width: 100%; min-height: 88px; margin-top: 0.85rem; resize: vertical;
+      background: var(--bg-2); color: var(--text); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 0.7rem 0.8rem; font-family: var(--mono); font-size: 0.8rem;
+    }
+    .stats { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
+    .stat {
+      background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
+      padding: 0.45rem 0.7rem; min-width: 5.5rem;
+    }
+    .stat b { display: block; font-size: 1.05rem; }
+    .stat span { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .layout { display: grid; grid-template-columns: 1fr 320px; gap: 1rem; }
+    @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+    .panel { padding: 1rem 1.05rem 1.15rem; }
+    .panel h3 { margin: 0 0 0.65rem; font-size: 0.95rem; letter-spacing: -0.01em; }
+    .finding {
+      border: 1px solid var(--border); border-radius: 10px; padding: 0.7rem 0.8rem; margin-bottom: 0.5rem;
+      background: var(--panel-2);
+    }
+    .finding.error { border-color: #7f1d1d; background: var(--danger-bg); }
+    .finding.warn { border-color: #854d0e; background: var(--warn-bg); }
+    .finding.info { border-color: #164e63; }
+    .finding .sev {
+      font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--muted);
+    }
+    .finding.error .sev { color: #fca5a5; }
+    .finding.warn .sev { color: #fcd34d; }
+    .finding.info .sev { color: #7dd3fc; }
+    .finding strong { display: block; margin: 0.15rem 0; }
+    .finding p { margin: 0; color: var(--muted); font-size: 0.84rem; }
+    .grid-wrap { overflow: auto; max-height: 420px; border: 1px solid var(--border); border-radius: 10px; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.78rem; font-family: var(--mono); }
+    th, td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 0.4rem 0.5rem; white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+    th { position: sticky; top: 0; background: #1a2740; text-align: left; z-index: 1; }
+    td.bad { background: rgba(239, 68, 68, 0.18); color: #fecaca; }
+    .side-card { margin-bottom: 0.85rem; }
+    .side-card p { margin: 0 0 0.8rem; color: var(--muted); font-size: 0.88rem; }
+    .license { display: flex; gap: 0.4rem; }
+    .license input {
+      flex: 1; background: var(--bg-2); border: 1px solid var(--border); color: var(--text);
+      border-radius: 8px; padding: 0.5rem 0.65rem;
+    }
+    .note { font-size: 0.78rem; color: var(--faint); margin: 0.7rem 0 0; }
+    footer { text-align: center; padding: 0 1rem 2.5rem; font-size: 0.78rem; color: #6b7a94; }
+    .toast {
+      position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%);
+      background: #0f172a; border: 1px solid var(--border-strong); color: var(--text);
+      padding: 0.55rem 0.9rem; border-radius: 999px; font-size: 0.85rem; z-index: 80;
+      box-shadow: var(--shadow); display: none;
+    }
+    .toast.show { display: block; }
+    .lock-hint { font-size: 0.8rem; color: var(--gold); margin: 0 0 0.65rem; }
+    #fileInput { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true">TT</div>
+      <div>
+        <strong>TortleTech CSV Preflight</strong>
+        <span>Local checks · paid repair · @TORTLE420</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span class="pill" id="lockPill">Repair locked</span>
+      <a class="btn btn-ghost" href="../">Hub</a>
+      <a class="btn btn-gold" id="payTop" href="https://buy.stripe.com/cNi00i959bNg9gh22JgnK04" target="_blank" rel="noopener">Unlock $19</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <h1>Catch broken CSVs before they hit an importer.</h1>
+        <p class="lede">
+          Drop a file or paste rows. TortleTech scans headers, ragged columns, formula bombs, and Excel-mangled IDs
+          on this device. Unlock once to repair and export. Nothing is uploaded.
+        </p>
+        <div class="drop" id="drop" tabindex="0" role="button" aria-label="Drop a CSV file">
+          <strong id="fileLabel">Drop a .csv here</strong>
+          <p>or click to browse · files stay in this tab</p>
+          <div class="row-actions">
+            <button class="btn" type="button" id="browseBtn">Choose file</button>
+            <button class="btn" type="button" id="sampleBtn">Load messy sample</button>
+          </div>
+        </div>
+        <input id="fileInput" type="file" accept=".csv,text/csv,text/plain,.txt,.tsv" />
+        <textarea id="paste" placeholder="Or paste CSV text and run a free scan…"></textarea>
+        <div class="row-actions" style="justify-content:flex-start">
+          <button class="btn btn-primary" type="button" id="scanBtn">Run free scan</button>
+          <button class="btn" type="button" id="clearBtn">Clear</button>
+        </div>
+        <div class="stats" id="stats" hidden></div>
+      </div>
+      <aside class="hero-card">
+        <h2>Repair &amp; export</h2>
+        <div class="price-row"><span class="amt">$19</span><span>one-time on this browser</span></div>
+        <ul>
+          <li>Free: full issue list + grid preview</li>
+          <li>Paid: conservative repairs + CSV download + log</li>
+          <li>Does not guarantee Shopify acceptance</li>
+          <li>Does not convert other platforms’ exports</li>
+        </ul>
+        <a class="btn btn-gold" id="payHero" href="https://buy.stripe.com/cNi00i959bNg9gh22JgnK04" target="_blank" rel="noopener">Pay with Stripe</a>
+        <p class="note">After payment, come back with <code>?unlocked=1</code> or enter a license below.</p>
+      </aside>
+    </section>
+
+    <section class="layout" id="workspace" hidden>
+      <div>
+        <div class="panel" style="margin-bottom:1rem">
+          <h3>Preview</h3>
+          <div class="grid-wrap" id="grid"></div>
+        </div>
+        <div class="panel">
+          <h3>Findings</h3>
+          <div id="findings"></div>
+        </div>
+      </div>
+      <aside>
+        <div class="panel side-card" id="lockedCard">
+          <h3>Unlock repair</h3>
+          <p class="lock-hint">Scan is free. Export stays locked until you pay.</p>
+          <p>Stripe checkout is the live <strong>TortleTech CSV Preflight — Offline Utility</strong> SKU.</p>
+          <a class="btn btn-gold" id="paySide" href="https://buy.stripe.com/cNi00i959bNg9gh22JgnK04" target="_blank" rel="noopener" style="width:100%;margin-bottom:0.7rem">Unlock with Stripe · $19</a>
+          <div class="license">
+            <input id="license" type="text" autocomplete="off" spellcheck="false" placeholder="License code" />
+            <button class="btn" type="button" id="licenseBtn">Apply</button>
+          </div>
+        </div>
+        <div class="panel side-card" id="unlockedCard" hidden>
+          <h3>Repair unlocked</h3>
+          <p>This browser can download a cleaned CSV and a repair log. Files still never leave the machine.</p>
+          <button class="btn btn-primary" type="button" id="repairBtn" style="width:100%;margin-bottom:0.45rem">Repair &amp; download CSV</button>
+          <button class="btn" type="button" id="logBtn" style="width:100%">Download repair log</button>
+        </div>
+        <div class="panel side-card">
+          <h3>What repair changes</h3>
+          <p>BOM strip, LF + UTF-8, header names, trim, pad ragged rows, drop blank rows, neutralize formula-like cells, expand scientific IDs.</p>
+          <p class="note">Duplicate SKUs are reported, not deleted. Platform conversion is out of scope.</p>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <footer>
+    © TortleTech · <a href="https://github.com/tortletechnology/TortleTech">Source</a>
+    · Offline-first tools · @TORTLE420
+  </footer>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="engine.js"></script>
+  <script>
+    (function () {
+      var E = window.TortleTechCsvPreflight;
+      var STRIPE = E.STRIPE_PAYMENT_LINK;
+      var VALID = ["TORTLETECH-CSV-PREFLIGHT", "TORTLETECH-CSV", "TORTLETECH19"];
+      var KEY = "tortletech_csv_preflight_license_v1";
+      var licensed = false;
+      var currentText = "";
+      var lastReport = null;
+      var currentName = "preflight.csv";
+
+      var drop = document.getElementById("drop");
+      var fileInput = document.getElementById("fileInput");
+      var paste = document.getElementById("paste");
+      var stats = document.getElementById("stats");
+      var workspace = document.getElementById("workspace");
+      var findingsEl = document.getElementById("findings");
+      var grid = document.getElementById("grid");
+      var toast = document.getElementById("toast");
+      var lockPill = document.getElementById("lockPill");
+      var lockedCard = document.getElementById("lockedCard");
+      var unlockedCard = document.getElementById("unlockedCard");
+
+      ["payTop", "payHero", "paySide"].forEach(function (id) {
+        document.getElementById(id).href = STRIPE;
+      });
+
+      function showToast(msg) {
+        toast.textContent = msg;
+        toast.classList.add("show");
+        setTimeout(function () { toast.classList.remove("show"); }, 2800);
+      }
+
+      function setLicensed(on, code) {
+        licensed = !!on;
+        lockPill.textContent = licensed ? "Repair unlocked" : "Repair locked";
+        lockPill.classList.toggle("on", licensed);
+        lockedCard.hidden = licensed;
+        unlockedCard.hidden = !licensed;
+        if (licensed) {
+          try { localStorage.setItem(KEY, code || "UNLOCKED"); } catch (e) {}
+        }
+      }
+
+      function readLicense() {
+        var params = new URLSearchParams(location.search);
+        if (params.get("unlocked") === "1" || params.get("success") === "1") {
+          setLicensed(true, "TORTLETECH-CSV-PREFLIGHT");
+          showToast("Welcome back — repair unlocked on this browser.");
+          return;
+        }
+        try {
+          var stored = localStorage.getItem(KEY);
+          if (stored) setLicensed(true, stored);
+        } catch (e) {}
+      }
+
+      function applyLicense() {
+        var raw = (document.getElementById("license").value || "").trim().toUpperCase();
+        if (VALID.indexOf(raw) !== -1) {
+          setLicensed(true, raw);
+          showToast("License applied. Repair & export are ready.");
+        } else {
+          showToast("That code is not valid.");
+        }
+      }
+
+      function renderStats(result) {
+        var c = E.counts(result.findings);
+        stats.hidden = false;
+        stats.innerHTML =
+          stat(result.meta.rows, "data rows") +
+          stat(result.meta.cols, "columns") +
+          stat(result.meta.delimiterLabel || result.meta.delimiter, "delimiter") +
+          stat(c.error, "errors") +
+          stat(c.warn, "warnings") +
+          stat(c.info, "notes");
+      }
+      function stat(v, label) {
+        return '<div class="stat"><b>' + escapeHtml(String(v)) + "</b><span>" + label + "</span></div>";
+      }
+
+      function escapeHtml(s) {
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function cellClass(result, rIdx, cIdx) {
+        var abs = rIdx + 1;
+        for (var i = 0; i < result.findings.length; i++) {
+          var cells = result.findings[i].cells || [];
+          for (var j = 0; j < cells.length; j++) {
+            var cell = cells[j];
+            if (cell.kind === "header" && rIdx === 0 && cell.col === cIdx) return "bad";
+            if (cell.kind === "cell" && cell.row === abs && cell.col === cIdx) return "bad";
+            if (cell.kind === "row" && cell.row === abs) return "bad";
+          }
+        }
+        return "";
+      }
+
+      function renderGrid(result) {
+        if (!result.previewRows.length) {
+          grid.innerHTML = "<p class='note'>No preview.</p>";
+          return;
+        }
+        var html = "<table><thead><tr>";
+        var width = result.previewRows[0].length;
+        for (var c = 0; c < width; c++) {
+          var h = result.previewRows[0][c];
+          html += "<th class='" + cellClass(result, 0, c) + "'>" + escapeHtml(h === "" ? "(empty)" : h) + "</th>";
+        }
+        html += "</tr></thead><tbody>";
+        for (var r = 1; r < result.previewRows.length; r++) {
+          html += "<tr>";
+          for (var k = 0; k < width; k++) {
+            html += "<td class='" + cellClass(result, r, k) + "'>" + escapeHtml(result.previewRows[r][k] || "") + "</td>";
+          }
+          html += "</tr>";
+        }
+        html += "</tbody></table>";
+        grid.innerHTML = html;
+      }
+
+      function renderFindings(result) {
+        if (!result.findings.length) {
+          findingsEl.innerHTML = "<p class='note'>No findings.</p>";
+          return;
+        }
+        findingsEl.innerHTML = result.findings
+          .map(function (f) {
+            return (
+              '<article class="finding ' + f.severity + '">' +
+              '<div class="sev">' + f.severity + (f.repairable ? " · repairable" : "") + "</div>" +
+              "<strong>" + escapeHtml(f.title) + "</strong>" +
+              "<p>" + escapeHtml(f.detail) + "</p></article>"
+            );
+          })
+          .join("");
+      }
+
+      function runScan(text, name) {
+        currentText = text || "";
+        if (name) currentName = name.replace(/\.[^.]+$/, "") + ".cleaned.csv";
+        var result = E.analyze(currentText);
+        lastReport = null;
+        workspace.hidden = false;
+        renderStats(result);
+        renderGrid(result);
+        renderFindings(result);
+        document.getElementById("fileLabel").textContent = name || "Pasted CSV";
+      }
+
+      function readFile(file) {
+        var reader = new FileReader();
+        reader.onload = function () {
+          paste.value = String(reader.result || "");
+          runScan(paste.value, file.name);
+        };
+        reader.readAsText(file);
+      }
+
+      drop.addEventListener("click", function (e) {
+        if (e.target.closest("button")) return;
+        fileInput.click();
+      });
+      document.getElementById("browseBtn").addEventListener("click", function (e) {
+        e.stopPropagation();
+        fileInput.click();
+      });
+      fileInput.addEventListener("change", function () {
+        if (fileInput.files && fileInput.files[0]) readFile(fileInput.files[0]);
+      });
+      ["dragenter", "dragover"].forEach(function (ev) {
+        drop.addEventListener(ev, function (e) {
+          e.preventDefault();
+          drop.classList.add("drag");
+        });
+      });
+      ["dragleave", "drop"].forEach(function (ev) {
+        drop.addEventListener(ev, function (e) {
+          e.preventDefault();
+          drop.classList.remove("drag");
+        });
+      });
+      drop.addEventListener("drop", function (e) {
+        var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file) readFile(file);
+      });
+      document.getElementById("sampleBtn").addEventListener("click", function (e) {
+        e.stopPropagation();
+        paste.value = E.SAMPLE_CSV;
+        runScan(E.SAMPLE_CSV, "sample-messy.csv");
+        showToast("Loaded a messy sample. Scan is free.");
+      });
+      document.getElementById("scanBtn").addEventListener("click", function () {
+        runScan(paste.value, currentName);
+      });
+      document.getElementById("clearBtn").addEventListener("click", function () {
+        paste.value = "";
+        currentText = "";
+        stats.hidden = true;
+        workspace.hidden = true;
+        fileInput.value = "";
+        document.getElementById("fileLabel").textContent = "Drop a .csv here";
+      });
+      document.getElementById("licenseBtn").addEventListener("click", applyLicense);
+      document.getElementById("license").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") applyLicense();
+      });
+
+      function download(filename, body, mime) {
+        var blob = new Blob([body], { type: mime || "text/plain;charset=utf-8" });
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () {
+          URL.revokeObjectURL(a.href);
+          a.remove();
+        }, 0);
+      }
+
+      function ensureRepair() {
+        if (!licensed) {
+          showToast("Unlock repair with Stripe to export.");
+          return null;
+        }
+        if (!currentText) {
+          showToast("Scan a CSV first.");
+          return null;
+        }
+        lastReport = E.repair(currentText);
+        return lastReport;
+      }
+
+      document.getElementById("repairBtn").addEventListener("click", function () {
+        var out = ensureRepair();
+        if (!out) return;
+        download(currentName || "preflight.cleaned.csv", out.csv, "text/csv;charset=utf-8");
+        showToast("Cleaned CSV downloaded.");
+      });
+      document.getElementById("logBtn").addEventListener("click", function () {
+        var out = ensureRepair();
+        if (!out) return;
+        var body =
+          "TortleTech CSV Preflight repair log\n" +
+          HANDLE_LINE() +
+          "\n" +
+          out.log +
+          "\n";
+        download((currentName || "preflight").replace(/\.cleaned\.csv$/, "") + ".repair-log.txt", body);
+        showToast("Repair log downloaded.");
+      });
+      function HANDLE_LINE() {
+        return "Brand: TortleTech / @TORTLE420\n";
+      }
+
+      readLicense();
+    })();
+  </script>
+</body>
+</html>
