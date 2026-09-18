@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tortletech-webull-mcp"
+version = "0.1.0"
+description = "TortleTech stdio MCP server for Webull quotes and gated cash-account trading"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "TortleTech" }]
+keywords = ["mcp", "webull", "tortletech"]
+dependencies = [
+  "mcp>=1.28,<2",
+]
+
+[project.optional-dependencies]
+live = ["webull-openapi-python-sdk"]
+dev = ["pytest>=8", "pytest-asyncio>=0.24"]
+
+[project.scripts]
+tortletech-webull-mcp = "tortletech_webull_mcp.server:main"
+
+[project.urls]
+Homepage = "https://github.com/tortletechnology/TortleTech"
+Documentation = "https://developer.webull.com/apis/docs/"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+pythonpath = ["src", "."]
+addopts = "-q"
