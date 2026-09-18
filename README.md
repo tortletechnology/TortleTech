@@ -46,6 +46,12 @@ GitHub Pages on the Free plan requires a **public** repository. This repo starte
    (the workflow also tries to enable this automatically).
 4. Confirm the live URL: https://tortletechnology.github.io/TortleTech/redactor/
 
+## Webull MCP
+
+Stdio MCP server for quotes and **gated** cash-account trading (single-leg long options). Mock mode runs without credentials; live mode wraps official Webull OpenAPI.
+
+See [mcp/webull/README.md](mcp/webull/README.md) for tools, safety flags, and a Cursor `mcp.json` snippet.
+
 ## Brand
 
 **TortleTech / @TORTLE420 only.** No personal names or other handles in copy, paths, or commits.
