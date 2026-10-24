@@ -23,8 +23,11 @@ jobs:
           test -f _site/redactor/index.html
           test -f _site/games/hot-dog-rush/index.html
           test -f _site/games/hot-dog-rush/vendor/three.module.min.js
-          grep -F -q 'Select your president' _site/games/hot-dog-rush/index.html
+          grep -F -q 'Hot Dog Rush' _site/games/hot-dog-rush/index.html
           grep -F -q 'viewport-fit=cover' _site/games/hot-dog-rush/index.html
+          node --check games/hot-dog-rush/stand.js
+          node --check games/hot-dog-rush/stand-logic.js
+          node --test games/hot-dog-rush/stand-logic.test.js
           grep -F -q 'https://buy.stripe.com/5kQ14m2GL6sWeAB7n3gnK03' _site/redactor/index.html
           grep -F -q 'var STRIPE_PAYMENT_LINK' _site/redactor/index.html
           node --test games/hot-dog-rush/logic.test.js

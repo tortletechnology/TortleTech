@@ -38,7 +38,7 @@ This repo deploys a static site with [`.github/workflows/pages.yml`](.github/wor
 
 ## Hot Dog Rush
 
-Phone diner at `/games/hot-dog-rush/`. Select your president — George W. Bush is the opening cook — then grill, dress, and serve hot dogs against a ticket timer. Touch controls, both orientations, no install. Logic tests: `node --test games/hot-dog-rush/logic.test.js`.
+Phone hot-dog stand at `/games/hot-dog-rush/`. Click the crates, grill, dress, and serve, then pick up the cash before the day ends. Touch controls, both orientations, no install. Logic tests: `node --test games/hot-dog-rush/logic.test.js games/hot-dog-rush/stand-logic.test.js`.
 - **Fallback:** the same files live at the repo root, so Settings → Pages → Deploy from branch `main` / `(root)` also works
 
 ### First-time go-live
