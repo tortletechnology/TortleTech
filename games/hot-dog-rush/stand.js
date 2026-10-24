@@ -31,9 +31,9 @@ const H = 720;
 const SAVE_KEY = "hot-dog-rush-stand";
 
 const BUN_SPOTS = [
-  { x: 470, y: 455 },
-  { x: 585, y: 490 },
-  { x: 700, y: 455 },
+  { x: 410, y: 448 },
+  { x: 508, y: 466 },
+  { x: 600, y: 446 },
 ];
 const BBUN_SPOTS = [
   { x: 470, y: 410 },
@@ -55,21 +55,26 @@ const ONION_SPOTS = [
   { x: 250, y: 460 },
 ];
 const FRIE_SPOTS = [
-  { x: 155, y: 400 },
-  { x: 210, y: 445 },
-  { x: 255, y: 390 },
+  { x: 130, y: 512 },
+  { x: 180, y: 524 },
+  { x: 228, y: 508 },
 ];
-const SLOT_X = [180, 420, 660, 900, 1140];
-const FEET = 328;
+const SLOT_X = [240, 480, 720, 960, 1090];
+// Back lip of the counter. It sits higher on the left and drops toward the right sidewalk.
+const SILL_PTS = [[0, 358], [150, 354], [280, 348], [460, 332], [680, 320], [860, 330], [1040, 348], [1180, 360], [1280, 372]];
+const FEET = 530;
+const BODY_H = 500;
+const BUN_TILT = 16 * Math.PI / 180;
 const CRATE = { x: 300, y: 200, w: 290, h: 170 };
 const SAUSAGES = { x: 1085, y: 470, w: 195, h: 230 };
 const KETCHUP = { x: 55, y: 125, w: 90, h: 220 };
-const MUSTARD = { x: 155, y: 180, w: 80, h: 170 };
-const FRYER = { x: 100, y: 300, w: 200, h: 190 };
+const MUSTARD = { x: 128, y: 352, w: 48, h: 96 };
+const RELISH = { x: 186, y: 356, w: 48, h: 96 };
+const FRYER = { x: 96, y: 478, w: 170, h: 64 };
 const TRASH = { x: 0, y: 530, w: 150, h: 190 };
 const PATTIES = { x: 760, y: 330, w: 90, h: 90 };
 const BURGER_CRATE = { x: 700, y: 250, w: 110, h: 90 };
-const ONION_BIN = { x: 200, y: 330, w: 100, h: 90 };
+const ONION_BIN = { x: 242, y: 358, w: 72, h: 88 };
 const LEMON = { x: 18, y: 360, w: 70, h: 130 };
 const COLA = { x: 88, y: 390, w: 70, h: 130 };
 const PAUSE = { x: 1210, y: 18, w: 52, h: 52 };
@@ -102,7 +107,7 @@ const TIPS = [
   "Click the sausages to put one on the grill.",
   "Wait until the hot dog turns golden.",
   "Drag the golden hot dog onto the bun.",
-  "If the bubble shows ketchup, click the bottle, then the bun.",
+  "Ketchup, mustard, relish, and onions are on the left. Click one, then the bun.",
   "Drag the hot dog to the customer, then tap the cash.",
 ];
 
@@ -135,6 +140,10 @@ const SRC = {
   mustard: "assets/mustard.png",
   bottleK: "assets/bottle-k.png",
   bottleM: "assets/bottle-m.png",
+  bottleR: "assets/bottle-r.png",
+  sauceK: "assets/sauce-k.png",
+  sauceM: "assets/sauce-m.png",
+  sauceR: "assets/sauce-r.png",
   cash: "assets/cash.png",
   fries: "assets/fries.png",
   bbun: "assets/burger-bun.png",
@@ -537,7 +546,7 @@ function placeBun(list) {
     float("Full", 540, 450);
     return;
   }
-  list[index] = { ketchup: 0, mustard: 0, sausage: 0, burger: 0, onion: 0 };
+  list[index] = { ketchup: 0, mustard: 0, relish: 0, sausage: 0, burger: 0, onion: 0 };
   tone(520, 0.05, "triangle", 0.04);
   if (list === S.buns) advanceTip(1);
 }
@@ -650,10 +659,15 @@ function giveTool(slot) {
 
 function sauceOn(list, index) {
   const plate = list[index];
-  if (!plate || (S.tool !== "ketchup" && S.tool !== "mustard")) return false;
-  if (plate[S.tool]) return false;
-  plate[S.tool] = 1;
-  if (S.tool === "ketchup") advanceTip(5);
+  if (!plate) return false;
+  if (S.tool === "onion") {
+    if (plate.onion) return false;
+    plate.onion = 3;
+  } else if (S.tool === "ketchup" || S.tool === "mustard" || S.tool === "relish") {
+    if (plate[S.tool]) return false;
+    plate[S.tool] = 1;
+  } else return false;
+  advanceTip(5);
   S.tool = null;
   tone(700, 0.05, "sine", 0.04);
   return true;
@@ -719,7 +733,7 @@ function dropAt(x, y) {
   }
   for (let i = 0; i < 5; i++) {
     const body = S.slots[i].body;
-    if (body && Math.abs(x - body.x) < 80 && y < 360 && give(S.slots[i])) return;
+    if (body && Math.abs(x - body.x) < 150 && y < sillAt(body.x) + 28 && give(S.slots[i])) return;
   }
   restore();
 }
@@ -741,10 +755,6 @@ function tapStack(x, y) {
     placeGrill(S.patties, COOK.burger);
     return true;
   }
-  if (has("onion") && inRect(ONION_BIN, x, y)) {
-    placeGrill(S.onions, COOK.onion);
-    return true;
-  }
   if (has("fries") && inRect(FRYER, x, y) && !S.fryer && S.fries.every((item) => !item)) {
     S.fryer = { left: COOK.fries };
     tone(260, 0.08, "sawtooth", 0.03);
@@ -755,8 +765,18 @@ function tapStack(x, y) {
     S.hand = null;
     return true;
   }
-  if (has("mustard") && inRect(MUSTARD, x, y)) {
+  if (inRect(MUSTARD, x, y)) {
     S.tool = S.tool === "mustard" ? null : "mustard";
+    S.hand = null;
+    return true;
+  }
+  if (inRect(RELISH, x, y)) {
+    S.tool = S.tool === "relish" ? null : "relish";
+    S.hand = null;
+    return true;
+  }
+  if (inRect(ONION_BIN, x, y)) {
+    S.tool = S.tool === "onion" ? null : "onion";
     S.hand = null;
     return true;
   }
@@ -805,7 +825,7 @@ function tapAt(x, y, hadHand) {
   }
   for (let i = 0; i < 5; i++) {
     const body = S.slots[i].body;
-    if (!body || Math.abs(x - body.x) > 78 || y > 360) continue;
+    if (!body || Math.abs(x - body.x) > 150 || y > sillAt(body.x) + 28) continue;
     if (body.state === "escape") {
       body.state = "caught";
       body.caught = 90;
@@ -814,7 +834,7 @@ function tapAt(x, y, hadHand) {
     }
     if (S.tool && giveTool(S.slots[i])) return;
   }
-  if (S.tool === "ketchup" || S.tool === "mustard") {
+  if (S.tool === "ketchup" || S.tool === "mustard" || S.tool === "relish" || S.tool === "onion") {
     for (let i = 0; i < 3; i++) if (S.buns[i] && near(BUN_SPOTS[i], x, y, 54) && sauceOn(S.buns, i)) return;
     for (let i = 0; i < 3; i++) if (S.bbuns[i] && near(BBUN_SPOTS[i], x, y, 50) && sauceOn(S.bbuns, i)) return;
     S.tool = null;
@@ -868,6 +888,19 @@ function onUp(event) {
   gesture = null;
 }
 
+function sillAt(x) {
+  const pts = SILL_PTS;
+  if (x <= pts[0][0]) return pts[0][1];
+  for (let i = 1; i < pts.length; i++) {
+    if (x <= pts[i][0]) {
+      const [x0, y0] = pts[i - 1];
+      const [x1, y1] = pts[i];
+      return y0 + ((y1 - y0) * (x - x0)) / (x1 - x0);
+    }
+  }
+  return pts[pts.length - 1][1];
+}
+
 function drawImageH(source, x, y, h) {
   if (!source) return;
   const w = source.width * (h / source.height);
@@ -878,6 +911,16 @@ function drawImageW(source, x, y, w) {
   if (!source) return;
   const h = source.height * (w / source.width);
   ctx.drawImage(source, x - w / 2, y - h / 2, w, h);
+}
+
+function drawTiltedW(source, x, y, w, angle) {
+  if (!source) return;
+  const h = source.height * (w / source.width);
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.drawImage(source, -w / 2, -h / 2, w, h);
+  ctx.restore();
 }
 
 function drawBottom(source, x, bottom, h) {
@@ -901,35 +944,45 @@ function drawPlate(plate, x, y, kind) {
     drawImageH(img.bbun, x, y, 78);
     if (plate.burger) drawImageH(meatSprite("patty", plate.burger), x, y - 6, 52);
   } else {
-    drawImageW(img.bun, x, y, 168);
-    if (plate.sausage) drawImageW(meatSprite("dog", plate.sausage), x, y - 2, 118);
+    drawImageW(img.bun, x, y, 122);
+    if (plate.sausage) drawTiltedW(meatSprite("dog", plate.sausage), x + 2, y, 90, BUN_TILT);
   }
-  if (plate.onion) drawImageH(plate.onion >= 3 ? img.onion1 : img.onion0, x + 16, y - 8, 28);
-  if (plate.ketchup) drawImageH(img.ketchup, x - 6, y - 8, 78);
-  if (plate.mustard) drawImageH(img.mustard, x + 18, y - 4, 74);
+  if (plate.onion) {
+    drawTiltedW(img.onion0, x - 24, y + 2, 30, BUN_TILT);
+    drawTiltedW(img.onion0, x + 18, y + 8, 26, BUN_TILT);
+  }
+  if (plate.ketchup) drawTiltedW(img.sauceK, x, y - 7, 84, BUN_TILT);
+  if (plate.mustard) drawTiltedW(img.sauceM, x + 2, y, 78, BUN_TILT);
+  if (plate.relish) drawTiltedW(img.sauceR, x - 1, y + 7, 76, BUN_TILT);
 }
 
 function drawBubble(body) {
   const icons = [];
   if (body.order.snack === "hot_dog") icons.push(["dog2", 26]);
   if (body.order.snack === "burger") icons.push(["patty2", 26]);
-  if (body.order.ketchup) icons.push(["ketchup", 28]);
-  if (body.order.mustard) icons.push(["mustard", 28]);
-  if (body.order.onion) icons.push(["onion1", 24]);
+  if (body.order.ketchup) icons.push(["sauceK", 22]);
+  if (body.order.mustard) icons.push(["sauceM", 22]);
+  if (body.order.relish) icons.push(["sauceR", 22]);
+  if (body.order.onion) icons.push(["onion0", 22]);
   for (let i = 0; i < body.order.fries; i++) icons.push(["fries", 28]);
   if (body.order.drink === "lemonade") icons.push(["lemonade", 32]);
   if (body.order.drink === "cola") icons.push(["cola", 32]);
   if (!icons.length) return;
-  const w = icons.length * 34 + 16;
+  const w = icons.length * 30 + 16;
   const x = Math.max(8, Math.min(W - w - 8, body.x - w / 2));
-  const y = 78;
+  const y = 50;
   roundRect(x, y, w, 42, 12);
   ctx.fillStyle = "rgba(255,250,240,0.95)";
   ctx.fill();
   ctx.lineWidth = 3;
   ctx.strokeStyle = ["#2f9e44", "#d4a017", "#e07020", "#d23b3b"][body.mood] || "#2f9e44";
   ctx.stroke();
-  icons.forEach((icon, index) => drawImageH(img[icon[0]], x + 24 + index * 34, y + 22, icon[1]));
+  icons.forEach((icon, index) => {
+    const source = img[icon[0]];
+    const cx = x + 20 + index * 30;
+    if (icon[0].startsWith("sauce")) drawImageW(source, cx, y + 20, 26);
+    else drawImageH(source, cx, y + 20, icon[1]);
+  });
   const frac = Math.max(0, body.wait / body.waitMax);
   ctx.fillStyle = "rgba(0,0,0,0.15)";
   ctx.fillRect(x + 8, y + 36, w - 16, 3);
@@ -937,10 +990,18 @@ function drawBubble(body) {
   ctx.fillRect(x + 8, y + 36, (w - 16) * frac, 3);
 }
 
+function stampBg(x, y, w, h) {
+  ctx.drawImage(img.bg, x, y, w, h, x, y, w, h);
+}
+
 function drawPeople() {
   ctx.save();
   ctx.beginPath();
-  ctx.rect(0, 0, W, 336);
+  ctx.moveTo(0, 0);
+  ctx.lineTo(W, 0);
+  ctx.lineTo(W, sillAt(W));
+  for (let i = SILL_PTS.length - 1; i >= 0; i--) ctx.lineTo(SILL_PTS[i][0], SILL_PTS[i][1]);
+  ctx.closePath();
   ctx.clip();
   const seenLook = {};
   for (const slot of S.slots) {
@@ -954,14 +1015,16 @@ function drawPeople() {
     if (flip) {
       ctx.translate(body.x + shake, 0);
       ctx.scale(-1, 1);
-      drawBottom(img[look], 0, FEET, 210);
+      drawBottom(img[look], 0, FEET, BODY_H);
     } else {
-      drawBottom(img[look], body.x + shake, FEET, 210);
+      drawBottom(img[look], body.x + shake, FEET, BODY_H);
     }
     ctx.restore();
   }
   ctx.restore();
-  ctx.drawImage(img.bg, 0, 318, W, H - 318, 0, 318, W, H - 318);
+  // Counter props sit in front of the customers.
+  stampBg(72, 138, 56, 200);
+  stampBg(318, 208, 250, 160);
   for (const slot of S.slots) {
     const body = slot.body;
     if (body && body.state === "wait") drawBubble(body);
@@ -996,6 +1059,16 @@ function drawFood() {
     if (!onion) return;
     drawImageH(onion.state >= 2 ? img.onion1 : img.onion0, ONION_SPOTS[index].x, ONION_SPOTS[index].y, 36);
   });
+  if (has("fries")) {
+    ctx.save();
+    roundRect(FRYER.x, FRYER.y, FRYER.w, FRYER.h, 12);
+    ctx.fillStyle = "rgba(120, 92, 40, 0.45)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255, 224, 160, 0.85)";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.restore();
+  }
   S.fries.forEach((ready, index) => ready && drawImageH(img.fries, FRIE_SPOTS[index].x, FRIE_SPOTS[index].y, 48));
   for (const slot of S.slots) {
     if (!slot.cash) continue;
@@ -1005,16 +1078,21 @@ function drawFood() {
     ctx.textAlign = "center";
     ctx.fillText(`$${slot.cash.amount}`, slot.cash.x, slot.cash.y + 6);
   }
-  if (has("mustard")) drawImageH(img.bottleM, MUSTARD.x + 36, MUSTARD.y + 70, 120);
+  drawImageH(img.bottleM, MUSTARD.x + 24, MUSTARD.y + 48, 100);
+  drawImageH(img.bottleR, RELISH.x + 24, RELISH.y + 48, 100);
+  drawImageH(img.onion0, ONION_BIN.x + 22, ONION_BIN.y + 28, 34);
+  drawImageH(img.onion0, ONION_BIN.x + 46, ONION_BIN.y + 46, 32);
+  drawImageH(img.onion0, ONION_BIN.x + 30, ONION_BIN.y + 58, 30);
   if (has("burger")) {
     drawImageH(img.bbun, BURGER_CRATE.x + 50, BURGER_CRATE.y + 40, 58);
     drawImageH(img.patty0, PATTIES.x + 40, PATTIES.y + 40, 46);
   }
-  if (has("onion")) drawImageH(img.onion0, ONION_BIN.x + 46, ONION_BIN.y + 40, 40);
   if (has("lemon")) drawImageH(img.lemonade, LEMON.x + 34, LEMON.y + 60, 90);
   if (has("cola")) drawImageH(img.cola, COLA.x + 34, COLA.y + 60, 90);
   if (S.tool === "ketchup") ring(KETCHUP);
   if (S.tool === "mustard") ring(MUSTARD);
+  if (S.tool === "relish") ring(RELISH);
+  if (S.tool === "onion") ring(ONION_BIN);
   if (S.tool === "lemonade") ring(LEMON);
   if (S.tool === "cola") ring(COLA);
 }
@@ -1043,8 +1121,16 @@ function drawHand() {
 
 function drawToolCursor() {
   if (!S.tool || S.hand) return;
-  const icon = S.tool === "ketchup" ? img.ketchup : S.tool === "mustard" ? img.mustard : img[S.tool];
-  drawImageH(icon, S.px, S.py - 28, 40);
+  const icon = {
+    ketchup: img.sauceK,
+    mustard: img.sauceM,
+    relish: img.sauceR,
+    onion: img.onion0,
+    lemonade: img.lemonade,
+    cola: img.cola,
+  }[S.tool];
+  if (S.tool === "ketchup" || S.tool === "mustard" || S.tool === "relish") drawImageW(icon, S.px, S.py - 28, 70);
+  else drawImageH(icon, S.px, S.py - 28, 40);
 }
 
 function chip(text, x, y, align) {
@@ -1204,7 +1290,7 @@ function drawZones() {
   ctx.save();
   ctx.strokeStyle = "rgba(0,255,255,0.8)";
   ctx.lineWidth = 2;
-  for (const rect of [CRATE, SAUSAGES, KETCHUP, TRASH, FRYER, MUSTARD, PATTIES, BURGER_CRATE, ONION_BIN, LEMON, COLA]) {
+  for (const rect of [CRATE, SAUSAGES, KETCHUP, TRASH, FRYER, MUSTARD, RELISH, PATTIES, BURGER_CRATE, ONION_BIN, LEMON, COLA]) {
     ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
   }
   ctx.restore();
@@ -1282,6 +1368,41 @@ window.__rush = {
     });
   },
   spawn() { trySpawn(); },
+  cast(types) {
+    const level = levelAt(S.level);
+    types.forEach((type, index) => {
+      if (!type || !S.slots[index]) {
+        if (S.slots[index]) S.slots[index].body = null;
+        return;
+      }
+      const person = PEOPLE[type] || PEOPLE.generic_man;
+      const waitMax = waitingFor(type, level.wait);
+      S.slots[index].body = {
+        type,
+        person,
+        look: LOOK[type] || LOOK.generic_man,
+        x: SLOT_X[index],
+        dir: 1,
+        slot: index,
+        state: "wait",
+        wait: waitMax,
+        waitMax,
+        marks: patienceMarks(waitMax),
+        mood: 0,
+        serve: SERVE_FRAMES,
+        order: rollOrder(menu(), Math.random),
+        items: 1,
+        price: 0,
+        sat: 0,
+        perfect: true,
+        shaking: false,
+        leave: 0,
+        bill: 0,
+        caught: 0,
+      };
+      S.slots[index].body.items = S.slots[index].body.order.items;
+    });
+  },
   step(n) { for (let i = 0; i < n; i++) sim(); },
   snapshot() {
     return {

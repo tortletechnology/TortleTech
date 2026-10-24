@@ -58,6 +58,16 @@ test("patience quarters and the angry face", () => {
   assert.equal(counter, 0);
 });
 
+test("relish and mustard change the bill the same way ketchup does", () => {
+  const order = { snack: "hot_dog", ketchup: 0, mustard: 1, relish: 1, onion: 0 };
+  const dressed = quoteSnack(order, { kind: "hot_dog", sausage: 3, ketchup: 0, mustard: 1, relish: 1, onion: 0 });
+  assert.equal(dressed.perfect, true);
+  assert.equal(dressed.price, 20);
+  const bare = quoteSnack(order, { kind: "hot_dog", sausage: 3, ketchup: 0, mustard: 0, relish: 0, onion: 0 });
+  assert.equal(bare.perfect, false);
+  assert.equal(bare.price, 15);
+});
+
 test("a perfect ketchup dog pays 17 before the tip", () => {
   const order = { snack: "hot_dog", ketchup: 1, mustard: 0, onion: 0, fries: 0, drink: null, items: 1 };
   const quote = quoteSnack(order, { kind: "hot_dog", sausage: 3, burger: 0, ketchup: 1, mustard: 0, onion: 0 });

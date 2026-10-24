@@ -10,6 +10,7 @@ export const PRICE = {
   burger: 20,
   ketchup: 2,
   mustard: 3,
+  relish: 2,
   onion: 4,
   fries: 10,
   cola: 7,
@@ -191,7 +192,7 @@ export function waitingFor(type, base) {
 }
 
 export function rollOrder(menu, rng) {
-  const order = { snack: "hot_dog", ketchup: 0, mustard: 0, onion: 0, fries: 0, drink: null, items: 1 };
+  const order = { snack: "hot_dog", ketchup: 0, mustard: 0, relish: 0, onion: 0, fries: 0, drink: null, items: 1 };
   if (menu.snack === "burger") order.snack = "burger";
   else if (menu.snack === "both") order.snack = rng() < 0.5 ? "hot_dog" : "burger";
   if (rng() < 0.7) {
@@ -214,6 +215,9 @@ export function rollOrder(menu, rng) {
     else if (menu.drink === "cola") order.drink = "cola";
     else if (menu.drink === "both") order.drink = rng() < 0.5 ? "lemonade" : "cola";
   }
+  if (rng() < 0.45) order.relish = 1;
+  if (!order.mustard && rng() < 0.4) order.mustard = 1;
+  if (!order.onion && rng() < 0.4) order.onion = 1;
   order.items = 1 + order.fries + (order.drink ? 1 : 0);
   return order;
 }
@@ -237,9 +241,10 @@ export function quoteSnack(order, item) {
   let perfect = true;
   const mustard = sauceScore(order.mustard, item.mustard, PRICE.mustard);
   const ketchup = sauceScore(order.ketchup, item.ketchup, PRICE.ketchup);
-  price += mustard.price + ketchup.price;
-  sat += mustard.sat + ketchup.sat;
-  perfect = perfect && mustard.perfect && ketchup.perfect;
+  const relish = sauceScore(order.relish, item.relish, PRICE.relish);
+  price += mustard.price + ketchup.price + relish.price;
+  sat += mustard.sat + ketchup.sat + relish.sat;
+  perfect = perfect && mustard.perfect && ketchup.perfect && relish.perfect;
   if (order.onion) {
     if (item.onion > 0) {
       const off = Math.abs(item.onion - 3);
