@@ -942,11 +942,23 @@ function drawPeople() {
   ctx.beginPath();
   ctx.rect(0, 0, W, 336);
   ctx.clip();
+  const seenLook = {};
   for (const slot of S.slots) {
     const body = slot.body;
     if (!body) continue;
     const shake = body.shaking ? Math.sin(S.frame * 1.4) * 3 : 0;
-    drawBottom(img[body.look[0]], body.x + shake, FEET, 210);
+    const look = body.look[0];
+    const flip = !!seenLook[look];
+    seenLook[look] = true;
+    ctx.save();
+    if (flip) {
+      ctx.translate(body.x + shake, 0);
+      ctx.scale(-1, 1);
+      drawBottom(img[look], 0, FEET, 210);
+    } else {
+      drawBottom(img[look], body.x + shake, FEET, 210);
+    }
+    ctx.restore();
   }
   ctx.restore();
   ctx.drawImage(img.bg, 0, 318, W, H - 318, 0, 318, W, H - 318);
