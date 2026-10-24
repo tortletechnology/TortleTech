@@ -15,13 +15,21 @@ jobs:
       - name: Assemble and verify public site
         run: |
           set -euo pipefail
-          mkdir -p _site/redactor
+          mkdir -p _site/redactor _site/games
           cp index.html 404.html .nojekyll _site/
           cp redactor/index.html _site/redactor/index.html
+          cp -R games/hot-dog-rush _site/games/hot-dog-rush
           test -f _site/index.html
           test -f _site/redactor/index.html
+          test -f _site/games/hot-dog-rush/index.html
+          test -f _site/games/hot-dog-rush/vendor/three.module.min.js
+          grep -F -q 'Select your president' _site/games/hot-dog-rush/index.html
+          grep -F -q 'viewport-fit=cover' _site/games/hot-dog-rush/index.html
           grep -F -q 'https://buy.stripe.com/5kQ14m2GL6sWeAB7n3gnK03' _site/redactor/index.html
           grep -F -q 'var STRIPE_PAYMENT_LINK' _site/redactor/index.html
+          node --test games/hot-dog-rush/logic.test.js
+          node --check games/hot-dog-rush/main.js
+          node --check games/hot-dog-rush/view.js
           if grep -RIiqE '\b(joe|joey|lacy|jhlacy|joeylazy)\b' index.html 404.html README.md redactor mcp; then
             echo "Brand lock failed: personal-name token found"
             exit 1

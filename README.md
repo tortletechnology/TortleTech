@@ -8,6 +8,7 @@ Offline-first tools by **TortleTech** / **@TORTLE420**.
 |---------|-----|
 | Hub | https://tortletechnology.github.io/TortleTech/ |
 | **Redactor** | **https://tortletechnology.github.io/TortleTech/redactor/** |
+| Hot Dog Rush | https://tortletechnology.github.io/TortleTech/games/hot-dog-rush/ |
 
 That Redactor URL is the public product. GitHub Pages serves `redactor/index.html` at `/redactor/`.
 
@@ -33,7 +34,11 @@ This repo deploys a static site with [`.github/workflows/pages.yml`](.github/wor
 
 - **Trigger:** push to `main`, or **Actions → Deploy GitHub Pages → Run workflow**
 - **Source:** GitHub Actions (`actions/configure-pages` with `enablement: true`)
-- **Published files:** `index.html`, `404.html`, `redactor/index.html`
+- **Published files:** `index.html`, `404.html`, `redactor/index.html`, `games/hot-dog-rush/`
+
+## Hot Dog Rush
+
+Phone diner at `/games/hot-dog-rush/`. Select your president — George W. Bush is the opening cook — then grill, dress, and serve hot dogs against a ticket timer. Touch controls, both orientations, no install. Logic tests: `node --test games/hot-dog-rush/logic.test.js`.
 - **Fallback:** the same files live at the repo root, so Settings → Pages → Deploy from branch `main` / `(root)` also works
 
 ### First-time go-live

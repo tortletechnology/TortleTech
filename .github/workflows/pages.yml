@@ -26,9 +26,10 @@ jobs:
 
       - name: Assemble public site
         run: |
-          mkdir -p _site/redactor
+          mkdir -p _site/redactor _site/games
           cp index.html 404.html .nojekyll _site/
           cp redactor/index.html _site/redactor/index.html
+          cp -R games/hot-dog-rush _site/games/hot-dog-rush
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
