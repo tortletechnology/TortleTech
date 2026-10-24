@@ -4,26 +4,37 @@ html, body {
   background: #c4784a;
   color: #fff6e8;
   font-family: Nunito, Fredoka, sans-serif;
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+}
+
+html, body {
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 body {
   min-height: 100dvh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  touch-action: none;
+  min-height: 100svh;
 }
 
 #boot {
-  position: absolute;
+  position: fixed;
+  left: 16px;
+  top: calc(var(--sat) + 16px);
   margin: 0;
   font-weight: 700;
+  z-index: 2;
 }
 
 #game {
-  width: min(100vw, calc(100dvh * 16 / 9));
-  height: min(100dvh, calc(100vw * 9 / 16));
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  height: 100svh;
   touch-action: none;
   background: #c4784a;
   display: block;
