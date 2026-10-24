@@ -25,16 +25,19 @@
   <div>
     <h1>Page not found</h1>
     <p>That path isn’t on the TortleTech site.</p>
-    <p><a id="link-home" href="/TortleTech/">Home</a> · <a id="link-redactor" href="/TortleTech/redactor/">Redactor</a></p>
+    <p><a id="link-home" href="/TortleTech/">Home</a> · <a id="link-redactor" href="/TortleTech/redactor/">Redactor</a> · <a id="link-game" href="/TortleTech/games/hot-dog-rush/">Hot Dog Rush</a></p>
     <script>
       (function () {
         var pages = /github\.io$/i.test(location.hostname);
         var home = pages ? "/TortleTech/" : "/";
         var app = pages ? "/TortleTech/redactor/" : "/redactor/";
+        var game = pages ? "/TortleTech/games/hot-dog-rush/" : "/games/hot-dog-rush/";
         var a = document.getElementById("link-home");
         var b = document.getElementById("link-redactor");
+        var c = document.getElementById("link-game");
         if (a) a.setAttribute("href", home);
         if (b) b.setAttribute("href", app);
+        if (c) c.setAttribute("href", game);
       })();
     </script>
   </div>

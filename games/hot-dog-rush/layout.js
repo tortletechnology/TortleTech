@@ -1,0 +1,36 @@
+export const LAYOUT = {
+  bounds: { minX: -4.4, maxX: 4.4, minZ: -1.6, maxZ: 1.8 },
+  counter: { z: -2.02, w: 5.15, h: 0.86, d: 1.22 },
+  wallZ: -4.7,
+  stations: [
+    { id: "buns", type: "buns", x: 1.72, z: -1.2 },
+    { id: "dogs", type: "dogs", x: -1.78, z: -1.2 },
+    { id: "grill", type: "grill", x: -0.92, z: -1.15 },
+    { id: "board-0", type: "board", mat: 0, x: 0.78, z: -1.05 },
+    { id: "board-1", type: "board", mat: 1, x: 0.05, z: -1.05 },
+    { id: "board-2", type: "board", mat: 2, x: -0.55, z: -1.05 },
+    { id: "serve", type: "serve", x: 0.05, z: -0.25 },
+    { id: "trash", type: "trash", x: 2.15, z: -1.4 },
+  ],
+  grillSlots: [-0.33, -0.11, 0.11, 0.33].map((dx) => ({ x: -0.92 + dx, z: -2.02 })),
+  mats: [
+    { x: 0.78, z: -1.9 },
+    { x: 0.05, z: -1.9 },
+    { x: -0.55, z: -1.9 },
+  ],
+  customers: [
+    { x: 1.55, z: -0.08 },
+    { x: -1.55, z: -0.08 },
+    { x: 0.02, z: 0.78 },
+  ],
+  bottles: [
+    { id: "ketchup", x: 1.18, z: -2.46, color: 0xd3262b },
+    { id: "mustard", x: 0.42, z: -2.46, color: 0xe2b31f },
+    { id: "relish", x: -0.22, z: -2.46, color: 0x2f9e44 },
+    { id: "onion", x: -0.78, z: -2.46, color: 0xf3e6c8 },
+  ],
+  spawn: { x: 0.02, z: -0.42 },
+  reach: 0.9,
+  trashRadius: 0.42,
+  itemY: 1.16,
+};

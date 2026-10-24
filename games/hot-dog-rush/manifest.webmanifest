@@ -1,0 +1,11 @@
+{
+  "name": "Hot Dog Rush",
+  "short_name": "Hot Dog Rush",
+  "description": "Select your president and serve hot dogs before the tickets run out.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a0e0c",
+  "theme_color": "#1a0e0c"
+}
