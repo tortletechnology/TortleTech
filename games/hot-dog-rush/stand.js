@@ -405,107 +405,119 @@ function applyLandscape() {
   syncActors();
 }
 
+const CLIPS = {
+  crate: { x: 258, y: 172, w: 330, h: 180, r: 10 },
+  pan: { x: 22, y: 354, w: 262, h: 112, r: 18 },
+  board: { x: 286, y: 388, w: 436, h: 172, r: 8 },
+  grill: { x: 724, y: 412, w: 320, h: 246, r: 10 },
+  tray: { x: 1042, y: 496, w: 238, h: 222, r: 18 },
+  trash: { x: 0, y: 486, w: 200, h: 234, can: true },
+};
+
+function cutBox(name) {
+  const spec = CLIPS[name];
+  return { w: spec.w, h: spec.h };
+}
+
+function fitCut(rect, name, x, y, destW) {
+  const box = cutBox(name);
+  rect.x = Math.round(x);
+  rect.y = Math.round(y);
+  rect.w = Math.round(destW);
+  rect.h = Math.round(destW * box.h / box.w);
+}
+
 function applyPortrait(w, h) {
   W = w;
   H = h;
   const sat = view.sat || 0;
   const sab = view.sab || 0;
   const usable = Math.max(480, h - sat - sab);
-  const sillY = Math.round(sat + usable * 0.33);
-  const binTop = sillY + 8;
-  const binH = Math.round(usable * 0.145);
-  const boardTop = binTop + binH + 10;
-  const boardH = Math.round(usable * 0.175);
-  const grillTop = boardTop + boardH + 10;
-  const grillH = Math.round(Math.max(96, h - sab - 56 - grillTop));
+  const sillY = Math.round(sat + usable * 0.27);
+  const front = h - sab - 48;
 
   for (let i = 0; i < SILL_PTS.length; i++) {
     const t = i / (SILL_PTS.length - 1);
     SILL_PTS[i][0] = t * w;
-    SILL_PTS[i][1] = sillY + (t - 0.5) * 8;
+    SILL_PTS[i][1] = sillY + (t - 0.5) * 6;
   }
   FEET = sillY + 2;
-  BODY_H = Math.max(150, Math.round(sillY - sat - 92));
-  [0.14, 0.32, 0.5, 0.68, 0.86].forEach((frac, index) => { SLOT_X[index] = w * frac; });
+  BODY_H = Math.max(148, Math.round(sillY - sat - 72));
+  [0.13, 0.31, 0.5, 0.69, 0.86].forEach((frac, index) => { SLOT_X[index] = w * frac; });
 
-  const drink = has("lemon") || has("cola") ? Math.round(Math.min(72, w * 0.16)) : 0;
-  BIN.x = 8;
-  BIN.y = binTop;
-  BIN.w = w - 16 - drink - (drink ? 8 : 0);
-  BIN.h = binH;
-  const gap = Math.max(6, w * 0.015);
-  const wellW = (BIN.w - gap * 5) / 4;
+  const burgers = has("burger");
+  fitCut(CRATE, "crate", w * 0.02, sillY - 22, w * (burgers ? 0.5 : 0.72));
+  if (burgers) {
+    BURGER_CRATE.w = Math.round(w * 0.34);
+    BURGER_CRATE.h = Math.round(BURGER_CRATE.w * 0.5);
+    BURGER_CRATE.x = Math.round(w - BURGER_CRATE.w - 8);
+    BURGER_CRATE.y = sillY - 4;
+  } else {
+    BURGER_CRATE.x = -400;
+    BURGER_CRATE.y = -400;
+    BURGER_CRATE.w = 1;
+    BURGER_CRATE.h = 1;
+  }
+
+  const drink = has("lemon") || has("cola") ? Math.round(Math.min(74, w * 0.16)) : 0;
+  fitCut(BIN, "pan", 0, CRATE.y + CRATE.h - 30, w - (drink ? drink + 8 : 0));
+  const gap = Math.max(6, BIN.w * 0.015);
+  const innerX = BIN.x + BIN.w * 0.2;
+  const innerW = BIN.w * 0.68;
+  const wellW = (innerW - gap * 3) / 4;
   [KETCHUP, MUSTARD, RELISH, ONION_BIN].forEach((rect, index) => {
-    rect.x = BIN.x + gap + index * (wellW + gap);
-    rect.y = BIN.y + 12;
+    rect.x = innerX + index * (wellW + gap);
+    rect.y = BIN.y + BIN.h * 0.32;
     rect.w = wellW;
-    rect.h = BIN.h - 26;
+    rect.h = BIN.h * 0.48;
   });
   if (drink) {
-    LEMON.x = BIN.x + BIN.w + 8;
+    LEMON.x = BIN.x + BIN.w + 6;
     LEMON.y = BIN.y + 6;
     LEMON.w = drink;
     LEMON.h = BIN.h * 0.46;
     COLA.x = LEMON.x;
     COLA.y = LEMON.y + LEMON.h + 6;
     COLA.w = drink;
-    COLA.h = BIN.h - LEMON.h - 18;
+    COLA.h = BIN.h - LEMON.h - 12;
   }
 
-  const crateW = Math.max(68, Math.min(96, w * 0.2));
-  CRATE.x = 8;
-  CRATE.y = boardTop;
-  CRATE.w = crateW;
-  CRATE.h = has("burger") ? boardH * 0.48 : boardH;
-  BURGER_CRATE.x = CRATE.x;
-  BURGER_CRATE.y = boardTop + boardH * 0.52;
-  BURGER_CRATE.w = crateW;
-  BURGER_CRATE.h = boardH * 0.48;
-  BOARD.x = CRATE.x + CRATE.w + 8;
-  BOARD.y = boardTop;
-  BOARD.w = w - BOARD.x - 8;
-  BOARD.h = boardH;
-  [0.2, 0.5, 0.8].forEach((frac, index) => {
-    BUN_SPOTS[index].x = BOARD.x + BOARD.w * frac;
-    BUN_SPOTS[index].y = BOARD.y + BOARD.h * (index === 1 ? 0.7 : 0.38);
-    BBUN_SPOTS[index].x = BUN_SPOTS[index].x;
-    BBUN_SPOTS[index].y = BOARD.y + BOARD.h * (index === 1 ? 0.48 : 0.22);
-  });
+  fitCut(BOARD, "board", -8, BIN.y + BIN.h - 16, w * 0.7);
+  fitCut(GRILL, "grill", w * 0.42, BOARD.y + 6, w * 0.6);
+  fitCut(TRASH, "trash", -18, front, w * 0.42);
+  TRASH.y = front - TRASH.h;
+  fitCut(SAUSAGES, "tray", 0, front, w * 0.52);
+  SAUSAGES.x = Math.round(w - SAUSAGES.w + 18);
+  SAUSAGES.y = front - SAUSAGES.h;
+  if (GRILL.y > TRASH.y - GRILL.h * 0.55) GRILL.y = Math.round(TRASH.y - GRILL.h * 0.55);
 
-  const trashW = Math.round(Math.min(92, w * 0.2));
-  TRASH.x = 6;
-  TRASH.y = grillTop;
-  TRASH.w = trashW;
-  TRASH.h = grillH;
-  GRILL.x = TRASH.x + TRASH.w + 6;
-  GRILL.y = grillTop;
-  GRILL.w = Math.round(w * 0.4);
-  GRILL.h = grillH;
-  SAUSAGES.x = GRILL.x + GRILL.w + 6;
-  SAUSAGES.y = grillTop;
-  SAUSAGES.w = w - SAUSAGES.x - 8;
-  SAUSAGES.h = grillH;
-  [0.28, 0.62, 0.4].forEach((frac, index) => {
-    DOG_SPOTS[index].x = GRILL.x + GRILL.w * frac;
-    DOG_SPOTS[index].y = GRILL.y + GRILL.h * (index === 1 ? 0.68 : index === 2 ? 0.4 : 0.28);
-    PATTY_SPOTS[index].x = GRILL.x + GRILL.w * (0.3 + index * 0.22);
-    PATTY_SPOTS[index].y = GRILL.y + GRILL.h * (0.32 + index * 0.16);
+  [0.2, 0.42, 0.64].forEach((frac, index) => {
+    BUN_SPOTS[index].x = BOARD.x + BOARD.w * frac;
+    BUN_SPOTS[index].y = BOARD.y + BOARD.h * 0.58;
+    BBUN_SPOTS[index].x = BUN_SPOTS[index].x;
+    BBUN_SPOTS[index].y = BOARD.y + BOARD.h * 0.38;
   });
-  ONION_SPOTS[0].x = BOARD.x + 28;
+  [[0.42, 0.34], [0.68, 0.48], [0.5, 0.62]].forEach(([fx, fy], index) => {
+    DOG_SPOTS[index].x = GRILL.x + GRILL.w * fx;
+    DOG_SPOTS[index].y = GRILL.y + GRILL.h * fy;
+    PATTY_SPOTS[index].x = GRILL.x + GRILL.w * (0.4 + index * 0.16);
+    PATTY_SPOTS[index].y = GRILL.y + GRILL.h * (0.32 + index * 0.12);
+  });
+  ONION_SPOTS[0].x = BOARD.x + BOARD.w * 0.18;
   ONION_SPOTS[0].y = BOARD.y + BOARD.h * 0.78;
-  ONION_SPOTS[1].x = BOARD.x + 64;
-  ONION_SPOTS[1].y = BOARD.y + BOARD.h * 0.58;
-  FRYER.x = GRILL.x + 4;
+  ONION_SPOTS[1].x = BOARD.x + BOARD.w * 0.38;
+  ONION_SPOTS[1].y = BOARD.y + BOARD.h * 0.36;
+  FRYER.x = GRILL.x + 8;
   FRYER.y = GRILL.y + 6;
-  FRYER.w = Math.max(36, GRILL.w * 0.46);
-  FRYER.h = 28;
+  FRYER.w = Math.max(42, GRILL.w * 0.42);
+  FRYER.h = 30;
   FRIE_SPOTS.forEach((spot, index) => {
     spot.x = FRYER.x + FRYER.w * (0.25 + index * 0.25);
-    spot.y = FRYER.y + 8;
+    spot.y = FRYER.y + 11;
   });
   PATTIES.x = GRILL.x + 6;
-  PATTIES.y = GRILL.y + GRILL.h - 44;
-  PATTIES.w = Math.min(52, GRILL.w * 0.34);
+  PATTIES.y = GRILL.y + GRILL.h - 46;
+  PATTIES.w = Math.min(54, GRILL.w * 0.28);
   PATTIES.h = 40;
   PAUSE.x = w - 56;
   PAUSE.y = sat + 8;
@@ -1744,11 +1756,11 @@ function drawCondiments() {
   ctx.save();
   ctx.beginPath();
   if (view.portrait) {
-    const x = BIN.x + 5;
-    const y = BIN.y + 6;
-    const w = BIN.w - 10;
-    const h = BIN.h - 16;
-    const r = 16;
+    const x = BIN.x + BIN.w * 0.03;
+    const y = BIN.y + BIN.h * 0.1;
+    const w = BIN.w * 0.94;
+    const h = BIN.h * 0.82;
+    const r = 8;
     ctx.moveTo(x + r, y);
     ctx.arcTo(x + w, y, x + w, y + h, r);
     ctx.arcTo(x + w, y + h, x, y + h, r);
@@ -1762,8 +1774,8 @@ function drawCondiments() {
   }
   ctx.closePath();
   ctx.clip();
-  [KETCHUP, MUSTARD, RELISH, ONION_BIN].forEach((rect) => {
-    ctx.fillStyle = view.portrait ? "rgba(84, 52, 8, 0.38)" : "rgba(30, 18, 0, 0.22)";
+  if (!view.portrait) [KETCHUP, MUSTARD, RELISH, ONION_BIN].forEach((rect) => {
+    ctx.fillStyle = "rgba(30, 18, 0, 0.22)";
     ctx.beginPath();
     ctx.ellipse(rect.x + rect.w / 2, rect.y + rect.h * 0.78, rect.w * 0.36, Math.max(4, rect.h * 0.12), 0, 0, Math.PI * 2);
     ctx.fill();
@@ -1781,15 +1793,6 @@ function drawCondiments() {
   drawImageH(img.onion0, ONION_BIN.x + ONION_BIN.w * 0.5, ONION_BIN.y + ONION_BIN.h * 0.72, ONION_BIN.h * 0.36);
   ctx.restore();
   if (!view.portrait && img.bg) ctx.drawImage(img.bg, 104, 436, 230, 34, 104, 436, 230, 34);
-  else {
-    const y = BIN.y + BIN.h - 11;
-    const lip = ctx.createLinearGradient(0, y, 0, y + 14);
-    lip.addColorStop(0, "#e7eef3");
-    lip.addColorStop(1, "#8d98a3");
-    ctx.fillStyle = lip;
-    roundRect(BIN.x + 2, y, BIN.w - 4, 13, 6);
-    ctx.fill();
-  }
 }
 
 function drawSpawnAim() {
@@ -1814,151 +1817,120 @@ function endButton() {
   return { x: (W - w) / 2, y: H * 0.7, w, h: 64 };
 }
 
+const cutCache = new Map();
+let counterCache = null;
+let counterKey = "";
+
+function paintCounter(g, sill) {
+  const steel = g.createLinearGradient(0, sill - 8, 0, H);
+  steel.addColorStop(0, "#e7c49a");
+  steel.addColorStop(0.06, "#8f8680");
+  steel.addColorStop(0.28, "#6a645f");
+  steel.addColorStop(0.62, "#514e4b");
+  steel.addColorStop(1, "#2e2c2e");
+  g.fillStyle = steel;
+  g.fillRect(0, sill - 10, W, H - sill + 20);
+  g.fillStyle = "rgba(255, 220, 170, 0.55)";
+  g.fillRect(0, sill - 6, W, 7);
+  g.fillStyle = "rgba(40, 24, 16, 0.18)";
+  g.fillRect(0, sill + 10, W, 14);
+  const shade = g.createLinearGradient(0, H - 90, 0, H);
+  shade.addColorStop(0, "rgba(0,0,0,0)");
+  shade.addColorStop(1, "rgba(16, 14, 18, 0.35)");
+  g.fillStyle = shade;
+  g.fillRect(0, H - 90, W, 90);
+}
+
+function counterPlate(sill) {
+  const key = `${W}x${H}x${Math.round(sill)}`;
+  if (counterCache && counterKey === key) return counterCache;
+  const plate = document.createElement("canvas");
+  plate.width = Math.max(1, Math.round(W));
+  plate.height = Math.max(1, Math.round(H));
+  paintCounter(plate.getContext("2d"), sill);
+  counterCache = plate;
+  counterKey = key;
+  return plate;
+}
+
+function cutSprite(name) {
+  let plate = cutCache.get(name);
+  if (plate) return plate;
+  const spec = CLIPS[name];
+  plate = document.createElement("canvas");
+  plate.width = spec.w;
+  plate.height = spec.h;
+  const g = plate.getContext("2d");
+  g.drawImage(img.bg, spec.x, spec.y, spec.w, spec.h, 0, 0, spec.w, spec.h);
+  g.globalCompositeOperation = "destination-in";
+  g.beginPath();
+  if (spec.can) {
+    const rim = spec.h * 0.18;
+    g.ellipse(spec.w * 0.46, rim + 8, spec.w * 0.46, rim, 0, Math.PI, 0);
+    g.lineTo(spec.w * 0.92, spec.h);
+    g.lineTo(spec.w * 0.02, spec.h);
+  } else {
+    const r = spec.r;
+    const w = spec.w;
+    const h = spec.h;
+    g.moveTo(r, 0);
+    g.arcTo(w, 0, w, h, r);
+    g.arcTo(w, h, 0, h, r);
+    g.arcTo(0, h, 0, 0, r);
+    g.arcTo(0, 0, w, 0, r);
+  }
+  g.closePath();
+  g.fill();
+  cutCache.set(name, plate);
+  return plate;
+}
+
+function drawCut(name, rect) {
+  if (!img.bg || rect.w < 8 || rect.h < 8) return;
+  const plate = cutSprite(name);
+  ctx.save();
+  ctx.shadowColor = "rgba(24, 14, 8, 0.38)";
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 5;
+  ctx.drawImage(plate, rect.x, rect.y, rect.w, rect.h);
+  ctx.restore();
+}
+
 function drawPortraitKitchen() {
   const sill = SILL_PTS[4][1];
-  if (img.bg) ctx.drawImage(img.bg, 0, 0, 1280, 420, 0, 0, W, sill + 6);
-  else {
+  if (img.bg) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, W, sill + 2);
+    ctx.clip();
+    const sw = 1100;
+    const sh = 236;
+    const scale = Math.max(W / sw, (sill + 8) / sh);
+    const dw = sw * scale;
+    const dh = sh * scale;
+    ctx.drawImage(img.bg, 160, 0, sw, sh, (W - dw) / 2, sill - 2 - dh, dw, dh);
+    ctx.restore();
+  } else {
     ctx.fillStyle = "#e38a4a";
     ctx.fillRect(0, 0, W, sill);
   }
   drawPeople();
-  const steel = ctx.createLinearGradient(0, sill, 0, H);
-  steel.addColorStop(0, "#b7c0c8");
-  steel.addColorStop(0.12, "#eceff2");
-  steel.addColorStop(0.45, "#8d969f");
-  steel.addColorStop(1, "#3c444c");
-  ctx.fillStyle = steel;
-  ctx.fillRect(0, sill - 1, W, H - sill + 2);
-  ctx.fillStyle = "rgba(255,255,255,0.45)";
-  ctx.fillRect(0, sill - 1, W, 3);
-  ctx.fillStyle = "rgba(0,0,0,0.22)";
-  ctx.fillRect(0, sill + 6, W, 10);
+  ctx.drawImage(counterPlate(sill), 0, 0);
   for (const slot of S.slots) {
     const body = slot.body;
     if (!body || body.state === "walk") continue;
-    contactShadow(body.x, sill + 18, view.portrait ? 36 : 48, 8);
+    contactShadow(body.x, sill + 18, 36, 8);
   }
-
-  ctx.save();
-  ctx.fillStyle = "rgba(0,0,0,0.28)";
-  roundRect(BIN.x + 3, BIN.y + 6, BIN.w, BIN.h, 18);
-  ctx.fill();
-  const bin = ctx.createLinearGradient(BIN.x, BIN.y, BIN.x, BIN.y + BIN.h);
-  bin.addColorStop(0, "#f4f7f8");
-  bin.addColorStop(0.35, "#c5ced6");
-  bin.addColorStop(1, "#7e8993");
-  ctx.fillStyle = bin;
-  roundRect(BIN.x, BIN.y, BIN.w, BIN.h, 18);
-  ctx.fill();
-  const oil = ctx.createLinearGradient(BIN.x, BIN.y, BIN.x, BIN.y + BIN.h);
-  oil.addColorStop(0, "#f0d98a");
-  oil.addColorStop(1, "#8d6414");
-  ctx.fillStyle = oil;
-  roundRect(BIN.x + 8, BIN.y + 10, BIN.w - 16, BIN.h - 22, 12);
-  ctx.fill();
-  ctx.restore();
-
-  ctx.save();
-  ctx.fillStyle = "rgba(0,0,0,0.3)";
-  ctx.beginPath();
-  ctx.moveTo(BOARD.x + 6, BOARD.y + 8);
-  ctx.lineTo(BOARD.x + BOARD.w + 4, BOARD.y + 10);
-  ctx.lineTo(BOARD.x + BOARD.w + 2, BOARD.y + BOARD.h + 8);
-  ctx.lineTo(BOARD.x + 2, BOARD.y + BOARD.h + 8);
-  ctx.closePath();
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(BOARD.x + BOARD.w * 0.05, BOARD.y);
-  ctx.lineTo(BOARD.x + BOARD.w * 0.95, BOARD.y + BOARD.h * 0.04);
-  ctx.lineTo(BOARD.x + BOARD.w, BOARD.y + BOARD.h);
-  ctx.lineTo(BOARD.x, BOARD.y + BOARD.h);
-  ctx.closePath();
-  const board = ctx.createLinearGradient(0, BOARD.y, 0, BOARD.y + BOARD.h);
-  board.addColorStop(0, "#ef6a55");
-  board.addColorStop(0.45, "#d04532");
-  board.addColorStop(1, "#8f2418");
-  ctx.fillStyle = board;
-  ctx.fill();
-  ctx.restore();
-
-  ctx.save();
-  roundRect(GRILL.x, GRILL.y, GRILL.w, GRILL.h, 16);
-  ctx.clip();
-  if (img.bg) ctx.drawImage(img.bg, 690, 424, 430, 210, GRILL.x - 4, GRILL.y - 6, GRILL.w + 8, GRILL.h + 10);
-  else {
-    ctx.fillStyle = "#2b2118";
-    ctx.fillRect(GRILL.x, GRILL.y, GRILL.w, GRILL.h);
-  }
-  ctx.restore();
-  ctx.save();
-  ctx.globalAlpha = 0.22 + 0.08 * Math.sin(S.frame * 0.2);
-  const heat = ctx.createRadialGradient(GRILL.x + GRILL.w * 0.5, GRILL.y + GRILL.h * 0.62, 8, GRILL.x + GRILL.w * 0.5, GRILL.y + GRILL.h * 0.6, GRILL.w * 0.5);
-  heat.addColorStop(0, "rgba(255, 140, 40, 0.9)");
-  heat.addColorStop(1, "rgba(255, 60, 0, 0)");
-  ctx.fillStyle = heat;
-  ctx.fillRect(GRILL.x, GRILL.y, GRILL.w, GRILL.h);
-  ctx.restore();
-
-  ctx.save();
-  ctx.fillStyle = "rgba(0,0,0,0.25)";
-  roundRect(SAUSAGES.x + 3, SAUSAGES.y + 6, SAUSAGES.w, SAUSAGES.h, 14);
-  ctx.fill();
-  const tray = ctx.createLinearGradient(SAUSAGES.x, SAUSAGES.y, SAUSAGES.x, SAUSAGES.y + SAUSAGES.h);
-  tray.addColorStop(0, "#f7f8f8");
-  tray.addColorStop(1, "#aeb6be");
-  ctx.fillStyle = tray;
-  roundRect(SAUSAGES.x, SAUSAGES.y, SAUSAGES.w, SAUSAGES.h, 14);
-  ctx.fill();
-  for (let i = 0; i < 3; i++) {
-    drawImageW(img.dog0, SAUSAGES.x + SAUSAGES.w * 0.5, SAUSAGES.y + SAUSAGES.h * (0.28 + i * 0.22), Math.min(SAUSAGES.w * 0.8, 88));
-  }
-  ctx.restore();
-
-  ctx.save();
-  const canW = TRASH.w * 0.92;
-  const canH = Math.min(TRASH.h * 0.62, 132);
-  const canX = TRASH.x + TRASH.w * 0.5;
-  const canY = TRASH.y + TRASH.h - canH - 6;
-  ctx.fillStyle = "rgba(0,0,0,0.3)";
-  ctx.beginPath();
-  ctx.ellipse(canX + 3, canY + canH, canW * 0.42, 8, 0, 0, Math.PI * 2);
-  ctx.fill();
-  const can = ctx.createLinearGradient(TRASH.x, 0, TRASH.x + TRASH.w, 0);
-  can.addColorStop(0, "#5c656e");
-  can.addColorStop(0.4, "#a8b1b8");
-  can.addColorStop(1, "#3e464e");
-  ctx.fillStyle = can;
-  roundRect(canX - canW / 2, canY, canW, canH, 10);
-  ctx.fill();
-  ctx.fillStyle = "#12161a";
-  ctx.beginPath();
-  ctx.ellipse(canX, canY + 10, canW * 0.42, 9, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = "#d5dde2";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.ellipse(canX, canY + 10, canW * 0.42, 9, 0, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
-
-  ctx.save();
-  ctx.fillStyle = "rgba(0,0,0,0.28)";
-  roundRect(CRATE.x + 3, CRATE.y + 6, CRATE.w, CRATE.h, 8);
-  ctx.fill();
-  const wood = ctx.createLinearGradient(CRATE.x, CRATE.y, CRATE.x, CRATE.y + CRATE.h);
-  wood.addColorStop(0, "#c48a52");
-  wood.addColorStop(1, "#6b3d1c");
-  ctx.fillStyle = wood;
-  roundRect(CRATE.x, CRATE.y, CRATE.w, CRATE.h, 8);
-  ctx.fill();
-  drawImageW(img.bun, CRATE.x + CRATE.w * 0.5, CRATE.y + CRATE.h * 0.42, CRATE.w * 0.82);
+  drawCut("crate", CRATE);
+  drawCut("pan", BIN);
+  drawCut("board", BOARD);
+  drawCut("grill", GRILL);
+  drawCut("trash", TRASH);
+  drawCut("tray", SAUSAGES);
   if (has("burger")) {
-    ctx.fillStyle = wood;
-    roundRect(BURGER_CRATE.x, BURGER_CRATE.y, BURGER_CRATE.w, BURGER_CRATE.h, 8);
-    ctx.fill();
-    drawImageH(img.bbun, BURGER_CRATE.x + BURGER_CRATE.w * 0.5, BURGER_CRATE.y + BURGER_CRATE.h * 0.45, BURGER_CRATE.h * 0.7);
+    contactShadow(BURGER_CRATE.x + BURGER_CRATE.w * 0.5, BURGER_CRATE.y + BURGER_CRATE.h * 0.86, BURGER_CRATE.w * 0.32, 7);
+    drawImageH(img.bbun, BURGER_CRATE.x + BURGER_CRATE.w * 0.5, BURGER_CRATE.y + BURGER_CRATE.h * 0.48, BURGER_CRATE.h * 0.72);
   }
-  ctx.restore();
 }
 
 function drawFood() {
