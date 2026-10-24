@@ -48,7 +48,7 @@
         <span id="record-line">No kitchen record yet</span>
         <span id="best-line"></span>
       </div>
-      <p class="fine">Drag the left pad, or tap a station. The red button does the job.</p>
+      <p class="fine">Click the stacks. Drag a dog onto a bun, add a bottle, hand it to the customer.</p>
     </div>
   </section>
 
@@ -78,7 +78,12 @@
           <span id="banner-title">Lunch rush</span>
         </div>
       </div>
-      <div id="guide"><b>NEXT</b><span id="guide-text">Hit GO. It runs you to the buns.</span></div>
+      <div id="guide"><b>NEXT</b><span id="guide-text">Click the bun stack. You can lay out three.</span></div>
+      <div id="floor-help">
+        <p>Tap the bun stack or the dog stack. You can put three buns out and four dogs on the grill.</p>
+        <p>Drag a gold dog onto a bun. It snaps. Tap a bottle for ketchup, mustard, relish, or onion.</p>
+        <p>Drag the finished dog to the customer whose bubble matches, and take the money.</p>
+      </div>
       <div id="floaters"></div>
     </div>
     <footer id="dock">
@@ -88,30 +93,29 @@
         <button class="top" type="button" data-top="relish" aria-label="Relish"><b>R</b><small>Relish</small></button>
         <button class="top" type="button" data-top="onion" aria-label="Onion"><b>O</b><small>Onion</small></button>
       </div>
-      <div id="stickrow">
-        <div id="move" aria-label="Drag to walk">
-          <div id="joy" role="application">
-            <div id="knob"></div>
-          </div>
-        </div>
-        <button id="action" type="button" aria-label="Use station">
-          <strong id="action-label">MOVE</strong>
-          <small id="action-sub">Find a station</small>
-        </button>
+      <div id="stations" class="station-grid">
+        <button type="button" data-go="buns">Buns<small>grab</small></button>
+        <button type="button" data-go="dogs">Dogs<small>raw</small></button>
+        <button type="button" data-go="grill">Grill<small>heat</small></button>
+        <button type="button" data-go="serve">Serve<small>window</small></button>
+        <button type="button" data-go="board-0">Bun 1<small>empty</small></button>
+        <button type="button" data-go="board-1">Bun 2<small>empty</small></button>
+        <button type="button" data-go="board-2">Bun 3<small>empty</small></button>
+        <button type="button" data-go="trash">Trash<small>dump</small></button>
       </div>
-      <p class="keyhint">WASD move · Space use · 1–4 toppings · P pause</p>
+      <p class="keyhint">Tap a station. WASD still walks. Space uses the nearest pad. 1–4 toppings.</p>
     </footer>
   </section>
 
   <div id="modal-help" class="modal" hidden>
     <div class="sheet" role="dialog" aria-labelledby="help-title">
       <h2 id="help-title">How to sling</h2>
-      <p class="lead">One thumb on the stick. The other on the red button. Match the ticket, then ring the window.</p>
+      <p class="lead">You work the counter directly. Click the food. Drag it where it goes. The money is in the customers' hands.</p>
       <ol class="steps">
-        <li><b>1</b><span>Drag the left pad to walk. Or tap a labeled station and you run there.</span></li>
-        <li><b>2</b><span>BUN, then DOG, then GRILL. Wait until the button says TAKE. Gold ring means done. Red means burnt.</span></li>
-        <li><b>3</b><span>PLACE the bun, STACK the dog, then tap the toppings the ticket shows. Plain means nothing extra.</span></li>
-        <li><b>4</b><span>GRAB and SERVE before the green bar empties. TRASH anything black. Combos pay more.</span></li>
+        <li><b>1</b><span>Click the bun stack to lay buns on the plates. Click it again. Three can be out at once.</span></li>
+        <li><b>2</b><span>Click the stack of dogs to drop them on the grill. Gold means done. Black means burnt.</span></li>
+        <li><b>3</b><span>Drag a grilled dog onto a bun. It snaps. Click ketchup, mustard, relish, or onion to match the bubble.</span></li>
+        <li><b>4</b><span>Drag the finished dog to that customer and collect the money. Drag mistakes into the trash.</span></li>
       </ol>
       <div class="sheet-actions">
         <button id="help-go" class="primary" type="button">Fire up the grill</button>

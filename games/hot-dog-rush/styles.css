@@ -41,7 +41,8 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 button:focus-visible { outline: 3px solid var(--mustard); outline-offset: 2px; }
-#view { display: block; width: 100%; height: 100%; touch-action: none; }
+#view { display: block; width: 100%; height: 100%; touch-action: none; background: #f6d3b0; }
+#stage { background: #f6d3b0; }
 #loader, .fail {
   position: fixed;
   inset: 0;
@@ -221,7 +222,7 @@ h1 {
 }
 
 #screen-play { display: flex; flex-direction: column; background: var(--ink); }
-#stage { position: relative; flex: 1; min-height: 0; }
+#stage { position: relative; flex: 1; min-height: 0; background: #f6d3b0; }
 #hud {
   position: absolute;
   top: 0;
@@ -236,11 +237,12 @@ h1 {
 }
 #hud button, #toppings button, #joy, #action { pointer-events: auto; }
 .hud-row, .hud-sub { display: flex; align-items: center; gap: 8px; }
+.hud-sub { align-self: flex-start; }
+#holding { display: none; }
 .icon-btn, #shift-label, #timer, #score, #combo, #holding {
   background: rgba(20, 10, 8, 0.72);
   border: 1px solid rgba(255, 244, 228, 0.14);
   border-radius: 12px;
-  backdrop-filter: blur(8px);
 }
 .icon-btn {
   width: 44px;
@@ -266,7 +268,7 @@ h1 {
 #timer.danger { color: #ffb4a8; background: #6e1822; }
 #score { color: var(--mustard); }
 #combo { color: #fff; background: var(--ketchup); }
-.tickets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.tickets { display: none !important; }
 .ticket {
   background: var(--paper);
   color: #24160f;
@@ -334,11 +336,33 @@ h1 {
   font-size: 0.68rem;
 }
 #guide span { font-family: var(--display); font-size: 0.98rem; line-height: 1.15; }
+#floor-help { display: none; }
+@media (orientation: portrait) {
+  #guide { top: var(--play-top, auto); bottom: auto; }
+  #speech { top: auto; bottom: 16px; }
+  #floor-help {
+    display: grid;
+    gap: 10px;
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    top: calc(var(--play-top, 62%) + 58px);
+    color: #3a241c;
+    font-weight: 800;
+    line-height: 1.3;
+  }
+  #floor-help p {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(255, 250, 243, 0.88);
+  }
+}
 #speech {
   position: absolute;
   left: 50%;
-  top: 108px;
-  bottom: auto;
+  top: auto;
+  bottom: 58px;
   transform: translateX(-50%);
   width: min(440px, calc(100% - 24px));
   background: var(--cream);
@@ -383,8 +407,9 @@ h1 {
 .floater.bad { color: #ffb4a8; }
 .floater.hot { color: white; }
 
+#stations, #toppings { display: none !important; }
 #dock {
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 8px;
   padding: 4px calc(12px + var(--safe-r)) calc(10px + var(--safe-b)) calc(12px + var(--safe-l));
@@ -407,24 +432,35 @@ h1 {
 .top[data-top="relish"] { background: #2f9e44; color: white; }
 .top[data-top="onion"] { background: #f3e6c8; color: #24160f; }
 .top.on { box-shadow: 0 0 0 3px #fff6ea, 0 0 0 6px var(--navy); }
-#stickrow { display: flex; align-items: center; justify-content: space-between; min-height: 150px; gap: 8px; }
-body.lefty #stickrow { flex-direction: row-reverse; }
-#move {
-  position: relative;
-  flex: 1;
-  height: 150px;
-  touch-action: none;
+.station-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
 }
-#joy {
-  position: absolute;
-  left: 8px;
-  top: 0;
-  width: 148px;
-  height: 148px;
-  border-radius: 50%;
-  background: rgba(255, 246, 234, 0.1);
-  border: 2px solid rgba(255, 246, 234, 0.28);
-  touch-action: none;
+.station-grid button {
+  min-height: 62px;
+  border-radius: 16px;
+  background: #3a221c;
+  color: var(--cream);
+  font-weight: 800;
+  border: 2px solid rgba(255, 246, 234, 0.16);
+  line-height: 1.05;
+  touch-action: manipulation;
+}
+.station-grid button small {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.station-grid button.next {
+  background: var(--ketchup);
+  border-color: #ffd0d4;
+}
+.station-grid button.here {
+  box-shadow: inset 0 0 0 2px var(--mustard);
 }
 #knob {
   position: absolute;
@@ -556,16 +592,18 @@ body.lefty #stickrow { flex-direction: row-reverse; }
     background: none;
     pointer-events: none;
   }
-  #toppings, #stickrow, #joy, #action { pointer-events: auto; }
-  #speech { top: 74px; bottom: auto; }
-  .keyhint { display: block; }
-  #move { height: 112px; }
-  #joy { width: 108px; height: 108px; }
-  #action { width: 96px; height: 96px; }
-  #guide { bottom: 4px; }
+  #toppings, .station-grid, .station-grid button { pointer-events: auto; }
+  #speech { top: auto; bottom: 40px; }
+  .keyhint { display: none; }
+  .station-grid { gap: 4px; }
+  .station-grid button { min-height: 34px; font-size: 0.75rem; padding: 2px 4px; }
+  .station-grid button small { margin-top: 0; font-size: 0.55rem; }
+  .top { min-height: 34px; }
+  #guide { top: auto; bottom: 4px; padding: 4px 8px; }
+  #dock { gap: 4px; padding-top: 0; padding-bottom: calc(4px + var(--safe-b)); }
   #stickrow { min-height: 0; }
 }
-@media (pointer: fine) {
+@media (pointer: fine) and (min-height: 640px) {
   .keyhint { display: block; }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -82,7 +82,7 @@ test("every station can be reached from the walkway", () => {
     const dist = Math.hypot(x - station.x, z - station.z);
     assert.ok(dist <= LAYOUT.reach, `${station.id} is ${dist} away`);
   }
-  assert.equal(LAYOUT.mats.length, 1);
+  assert.equal(LAYOUT.mats.length, 3);
   assert.equal(LAYOUT.grillSlots.length, 4);
 });
 

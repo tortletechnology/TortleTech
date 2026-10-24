@@ -11,7 +11,7 @@ import {
   TOPPINGS,
 } from "./logic.js";
 import { createAudio } from "./audio.js";
-import { PerspectiveCamera, Plane, Raycaster, Vector2, Vector3 } from "./vendor/three.module.min.js";
+import { Group, PerspectiveCamera, Plane, Raycaster, Vector2, Vector3 } from "./vendor/three.module.min.js";
 import {
   buildKitchen,
   buildSelectScene,
@@ -21,6 +21,7 @@ import {
   framePlayCamera,
   frameSelectCamera,
   makeFood,
+  paintOrderBubble,
   ringColor,
   updateActor,
 } from "./view.js";
@@ -56,15 +57,17 @@ const state = {
   nextOrderId: 1,
   spawnIn: 2,
   hands: null,
-  mats: [{ bun: false, sausage: null, toppings: [] }],
+  mats: LAYOUT.mats.map(() => ({ bun: false, sausage: null, toppings: [] })),
   stats: emptyStats(),
   lastCall: false,
   bannerT: 0,
   emote: 0,
   emoteKind: "",
   shake: 0,
-  dprCap: 1.6,
+  dprCap: 1.25,
   helpMode: "intro",
+  pan: 0,
+  focusMat: 0,
 };
 
 const player = { x: LAYOUT.spawn.x, z: LAYOUT.spawn.z, yaw: Math.PI };
@@ -209,7 +212,7 @@ function stepPresident(dir) {
 }
 
 function applyPlayCamera(aspect, blend) {
-  const framed = framePlayCamera(aspect, player);
+  const framed = framePlayCamera(aspect, { pan: state.pan });
   if (!playCam) playCam = { pos: framed.pos.clone(), target: framed.target.clone() };
   else {
     playCam.pos.lerp(framed.pos, blend);
@@ -225,14 +228,32 @@ function applyPlayCamera(aspect, blend) {
 function resize() {
   const host = renderer.domElement.parentElement;
   if (!host) return;
-  const w = host.clientWidth;
-  const h = host.clientHeight;
-  if (w < 2 || h < 2) return;
+  const hostW = host.clientWidth;
+  const hostH = host.clientHeight;
+  if (hostW < 2 || hostH < 2) return;
+  const canvas = renderer.domElement;
+  let w = hostW;
+  let h = hostH;
+  if (state.mode === "play" && hostW < hostH) {
+    const aspect = 1.42;
+    h = Math.min(hostW / aspect, Math.max(190, hostH - 220));
+    w = Math.min(hostW, h * aspect);
+    const top = 92;
+    canvas.style.position = "absolute";
+    canvas.style.left = `${Math.round((hostW - w) / 2)}px`;
+    canvas.style.top = `${top}px`;
+    document.documentElement.style.setProperty("--play-top", `${Math.round(top + h + 10)}px`);
+  } else {
+    canvas.style.position = "absolute";
+    canvas.style.left = "0px";
+    canvas.style.top = "0px";
+    document.documentElement.style.removeProperty("--play-top");
+  }
   const dpr = Math.min(window.devicePixelRatio || 1, state.dprCap);
   renderer.setPixelRatio(dpr);
   renderer.setSize(w, h, false);
-  renderer.domElement.style.width = `${w}px`;
-  renderer.domElement.style.height = `${h}px`;
+  canvas.style.width = `${w}px`;
+  canvas.style.height = `${h}px`;
   const aspect = w / h;
   if (state.mode === "select") frameSelectCamera(camera, aspect);
   else applyPlayCamera(aspect, 1);
@@ -250,9 +271,11 @@ function setMode(mode) {
 function resetKitchen() {
   state.hands = null;
   state.orders = [];
-  state.mats[0].bun = false;
-  state.mats[0].sausage = null;
-  state.mats[0].toppings.length = 0;
+  state.mats.forEach((mat) => {
+    mat.bun = false;
+    mat.sausage = null;
+    mat.toppings.length = 0;
+  });
   slots.forEach((slot) => {
     slot.t = 0;
     slot.state = "empty";
@@ -290,6 +313,7 @@ function startShift() {
   state.stats = emptyStats();
   state.spawnIn = state.shift === 1 ? 3.2 : 2.2;
   resetKitchen();
+  playCam = null;
   spawnOrder(state.shift === 1);
   if (actor?.parent) actor.parent.remove(actor);
   actor = actorFor(state.presidentId);
@@ -300,7 +324,7 @@ function startShift() {
   $("banner-kicker").textContent = `Shift ${cfg.shift}`;
   $("banner-title").textContent = cfg.name;
   $("banner").hidden = false;
-  $("shift-label").textContent = `Shift ${cfg.shift} · ${cfg.name}`;
+  $("shift-label").textContent = `${cfg.name} · goal $${cfg.twoStar}`;
   audio.resume();
   audio.fanfare();
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
@@ -418,30 +442,31 @@ function movePlayer(dt, moving, dir) {
   player.yaw += delta * Math.min(1, dt * 18);
 }
 
+function spotId(index) {
+  return `board-${Math.max(0, index)}`;
+}
+
 function nextStep() {
-  const hands = state.hands;
-  const mat = state.mats[0];
   const cooked = slots.some((slot) => slot.state === "cooked");
-  const cooking = slots.some((slot) => slot.state === "cooking" || slot.state === "cooked" || slot.state === "burnt");
-  if (hands?.state === "burnt" || (hands?.kind === "sausage" && hands.state === "burnt")) {
-    return { station: "trash", text: "Trash the burnt dog" };
+  const onGrill = slots.some((slot) => slot.state !== "empty");
+  const empty = state.mats.findIndex((mat) => !mat.bun && !mat.sausage);
+  const needsDog = state.mats.findIndex((mat) => mat.bun && !mat.sausage);
+  const ready = state.mats.findIndex((mat) => mat.bun && mat.sausage);
+  if (needsDog >= 0 && cooked) return { station: "grill", text: "Drag a gold dog onto a bun. It snaps." };
+  if (needsDog >= 0 && !onGrill) return { station: "dogs", text: "Click the stack of dogs to fill the grill." };
+  if (needsDog >= 0) return { station: "grill", text: "The grill is working. Click the stack to add more dogs." };
+  if (ready >= 0) {
+    const mat = state.mats[ready];
+    return mat.toppings.length
+      ? { station: spotId(ready), text: "Drag that dog to the customer with the matching bubble." }
+      : { station: spotId(ready), text: "Click a bottle to add what the bubble shows, then drag it over." };
   }
-  if (hands?.kind === "dog" && hands.state === "cooked") return { station: "serve", text: "Serve it at the window" };
-  if (hands?.kind === "sausage" && hands.state === "raw") return { station: "grill", text: "Drop the dog on the grill" };
-  if (hands?.kind === "sausage") return { station: "board", text: "Stack the dog on the bun" };
-  if (hands?.kind === "bun") return { station: "board", text: "Put the bun on the board" };
-  if (mat.bun && mat.sausage) return { station: "board", text: "Match the ticket, then grab the dog" };
-  if (mat.bun && cooked) return { station: "grill", text: "Take the gold dog off the grill" };
-  if (mat.bun && cooking) return { station: "dogs", text: "Grab another dog, or wait for gold" };
-  if (mat.bun) return { station: "dogs", text: "Grab a raw dog" };
-  if (cooked) return { station: "buns", text: "Grab a bun for that dog" };
-  return { station: "buns", text: "Hit GO. It runs you to the buns." };
+  if (empty >= 0) return { station: "buns", text: "Click the bun stack. You can lay out three." };
+  return { station: "buns", text: "Drag a finished dog to a customer and take the money." };
 }
 
 function simulate(dt) {
-  const dir = axis();
-  const moving = Math.hypot(dir.x, dir.y) > 0.05;
-  movePlayer(dt, moving, dir);
+  // The cook stays behind the counter. Play is clicking and dragging the food, not walking.
   if (state.phase === "banner") {
     state.bannerT -= dt;
     if (state.bannerT <= 0) {
@@ -501,8 +526,7 @@ function onLeave(order) {
   state.stats.lost += 1;
   state.combo = 0;
   const heldMatch = state.hands?.kind === "dog" && state.hands.state === "cooked" && sameSet(state.hands.toppings, order.toppings);
-  const mat = state.mats[0];
-  const matMatch = mat.bun && mat.sausage === "cooked" && sameSet(mat.toppings, order.toppings);
+  const matMatch = state.mats.some((mat) => mat.bun && mat.sausage === "cooked" && sameSet(mat.toppings, order.toppings));
   floater(heldMatch || matMatch ? "SO CLOSE" : "LEFT", "bad");
   if (heldMatch || matMatch) say("So close. That one walked.", "quip");
   else say(line(currentDef(), "fail"), "quip");
@@ -535,7 +559,7 @@ function onAction(forced, fromWalk) {
   if (station.type === "buns") doBuns();
   else if (station.type === "dogs") doDogs();
   else if (station.type === "grill") doGrill();
-  else if (station.type === "board") doBoard();
+  else if (station.type === "board") doBoard(station);
   else if (station.type === "serve") doServe();
   else if (station.type === "trash") doTrash();
 }
@@ -578,11 +602,12 @@ function doGrill() {
   if (state.hands.state === "burnt") say("Burnt. Walk it to the trash.");
 }
 
-function doBoard() {
-  const mat = state.mats[0];
+function doBoard(station) {
+  const mat = state.mats[station?.mat ?? 0];
+  const spot = (station?.mat ?? 0) + 1;
   const hands = state.hands;
   if (hands?.kind === "bun") {
-    if (mat.bun || mat.sausage) return say("The board is busy.");
+    if (mat.bun || mat.sausage) return say(`Bun ${spot} is taken. Use another spot.`);
     mat.bun = true;
     state.hands = null;
     audio.pickup();
@@ -590,8 +615,8 @@ function doBoard() {
   }
   if (hands?.kind === "sausage") {
     if (hands.state === "raw") return say("Grill that dog first.");
-    if (!mat.bun) return say("Lay a bun down first.");
-    if (mat.sausage) return say("That bun already has a dog.");
+    if (!mat.bun) return say(`Bun ${spot} is empty. Set a bun there first.`);
+    if (mat.sausage) return say(`Bun ${spot} already has a dog.`);
     mat.sausage = hands.state;
     state.hands = null;
     audio.pickup();
@@ -599,7 +624,7 @@ function doBoard() {
     return;
   }
   if (hands?.kind === "dog") {
-    if (mat.bun || mat.sausage) return say("Clear the board to fix that dog.");
+    if (mat.bun || mat.sausage) return say(`Clear bun ${spot} before putting that back.`);
     mat.bun = true;
     mat.sausage = hands.state;
     mat.toppings.splice(0, mat.toppings.length, ...hands.toppings);
@@ -623,7 +648,7 @@ function doBoard() {
     audio.pickup();
     return;
   }
-  say("Place a bun, then a grilled dog.");
+  say(`Bun ${spot} is open. Set a bun, then a grilled dog.`);
 }
 
 function doServe() {
@@ -676,10 +701,9 @@ function doTrash() {
   if (!burnt) say("There went a perfectly good dog.");
 }
 
-function onTopping(id) {
-  if (nearestStation()?.type !== "board") return say("Step up to the board.");
-  const mat = state.mats[0];
-  if (!mat.bun || !mat.sausage) return say("Bun and a grilled dog first.");
+function onTopping(id, matIndex = state.focusMat) {
+  const mat = state.mats[matIndex];
+  if (!mat?.bun || !mat.sausage) return say("Drag a grilled dog onto a bun first.");
   const index = mat.toppings.indexOf(id);
   if (index >= 0) mat.toppings.splice(index, 1);
   else mat.toppings.push(id);
@@ -707,8 +731,8 @@ function describeAction() {
     return ["GRILL", "Bring a raw dog", false];
   }
   if (station.type === "board") {
-    const mat = state.mats[0];
-    if (hands?.kind === "bun") return mat.bun || mat.sausage ? ["BUSY", "Board is full", false] : ["PLACE", "Put the bun down", true];
+    const mat = state.mats[station.mat ?? 0];
+    if (hands?.kind === "bun") return mat.bun || mat.sausage ? ["BUSY", "Try another bun spot", false] : ["PLACE", "Put the bun down", true];
     if (hands?.kind === "sausage") {
       if (hands.state === "raw") return ["GRILL", "Cook it before stacking", false];
       if (!mat.bun) return ["BUN?", "Need a bun first", false];
@@ -743,20 +767,42 @@ function foodSpecFromHands() {
 }
 
 function updateHud() {
-  const [label, sub, enabled] = describeAction();
-  $("action-label").textContent = label;
-  $("action-sub").textContent = sub;
-  $("action").classList.toggle("ready", enabled);
-  const nearBoard = nearestStation()?.type === "board";
+  const station = nearestStation();
+  const nearBoard = station?.type === "board";
   $("toppings").hidden = !nearBoard;
-  const mat = state.mats[0];
+  const mat = nearBoard ? state.mats[station.mat ?? 0] : state.mats[0];
   TOPPINGS.forEach((topping) => {
     const button = document.querySelector(`[data-top="${topping.id}"]`);
     button.classList.toggle("on", mat.toppings.includes(topping.id));
   });
+  const hint = nextStep();
+  document.querySelectorAll("[data-go]").forEach((button) => {
+    const id = button.dataset.go;
+    const target = LAYOUT.stations.find((item) => item.id === id);
+    button.classList.toggle("next", id === hint.station);
+    button.classList.toggle("here", station?.id === id);
+    const note = button.querySelector("small");
+    if (!note || !target) return;
+    let text = "";
+    if (target.type === "board") {
+      const spot = state.mats[target.mat];
+      if (spot.bun && spot.sausage) text = spot.toppings.length ? `${spot.toppings.length} tops` : "ready";
+      else if (spot.bun) text = "bun down";
+      else text = "empty";
+    } else if (target.type === "grill") {
+      const done = slots.filter((slot) => slot.state === "cooked").length;
+      text = done ? `${done} done` : "heat";
+    } else if (target.type === "buns") text = "grab";
+    else if (target.type === "dogs") text = "raw";
+    else if (target.type === "serve") text = "window";
+    else text = "dump";
+    if (note.textContent !== text) note.textContent = text;
+  });
   const hold = describeHands();
   if ($("holding").textContent !== hold) $("holding").textContent = hold;
-  $("score").textContent = state.score.toLocaleString();
+  $("score").textContent = `$${state.score.toLocaleString()}`;
+  const goalLabel = `Goal $${shiftConfig(state.shift).twoStar.toLocaleString()}`;
+  if ($("holding").textContent !== goalLabel) $("holding").textContent = goalLabel;
   $("combo").hidden = state.combo < 2;
   $("combo").textContent = `x${state.combo} COMBO`;
   $("timer").textContent = formatTime(state.timeLeft);
@@ -779,8 +825,7 @@ function updateHud() {
 function readyMatch(order) {
   const hands = state.hands;
   if (hands?.kind === "dog" && hands.state === "cooked" && sameSet(hands.toppings, order.toppings)) return true;
-  const mat = state.mats[0];
-  return !!(mat.bun && mat.sausage === "cooked" && sameSet(mat.toppings, order.toppings));
+  return state.mats.some((mat) => mat.bun && mat.sausage === "cooked" && sameSet(mat.toppings, order.toppings));
 }
 
 function paintTickets() {
@@ -816,7 +861,7 @@ function updatePlayVisuals(dt) {
   const dir = axis();
   const moving = state.mode === "play" && !state.paused && state.phase !== "end" && Math.hypot(dir.x, dir.y) > 0.05;
   actor.position.set(player.x, 0, player.z);
-  actor.rotation.y = player.yaw;
+  actor.rotation.y = Math.PI;
   updateActor(actor, dt, {
     moving,
     point: state.emoteKind === "point" && state.emote > 0,
@@ -832,19 +877,25 @@ function updatePlayVisuals(dt) {
     if (spec) actor.userData.hold.add(makeFood(spec));
   }
 
-  const mat = state.mats[0];
-  const nextMat = JSON.stringify(mat);
+  const nextMat = JSON.stringify(state.mats);
   if (nextMat !== matSig) {
     matSig = nextMat;
-    clearGroup(playPack.mats[0].food);
-    if (mat.bun || mat.sausage) {
-      playPack.mats[0].food.add(makeFood({ bun: mat.bun, sausage: mat.sausage, toppings: mat.toppings }));
-    }
+    state.mats.forEach((mat, index) => {
+      const view = playPack.mats[index];
+      clearGroup(view.food);
+      if (mat.bun || mat.sausage) {
+        const food = makeFood({ bun: mat.bun, sausage: mat.sausage, toppings: mat.toppings });
+        food.scale.setScalar(1.35);
+        view.food.add(food);
+      }
+    });
   }
-  const nearBoard = nearestStation()?.type === "board";
-  const padMat = playPack.mats[0].pad.material;
-  padMat.emissive.setHex(nearBoard ? 0xffd56a : 0x000000);
-  padMat.emissiveIntensity = nearBoard ? 0.45 : 0;
+  const near = nearestStation();
+  playPack.mats.forEach((view, index) => {
+    const on = state.focusMat === index && (state.mats[index].bun || state.mats[index].sausage);
+    view.pad.material.emissive.setHex(on ? 0xffd56a : 0x000000);
+    view.pad.material.emissiveIntensity = on ? 0.45 : 0;
+  });
 
   playPack.slots.forEach((view, index) => {
     const slot = slots[index];
@@ -878,7 +929,16 @@ function updatePlayVisuals(dt) {
     const pulse = suggested ? 1.08 + Math.sin(performance.now() / 180) * 0.08 : here ? 1.05 : 0.92;
     pad.scale.setScalar(pulse);
   });
-  playPack.marker.visible = state.phase !== "end";
+  playPack.marker.visible = false;
+  playPack.bubbles?.forEach((bubble, index) => {
+    const order = state.orders[index];
+    const mood = order ? Math.ceil((order.patience / order.maxPatience) * 8) : 0;
+    const sig = order ? `${order.id}:${order.toppings.join(",")}:${mood}` : "";
+    if (bubble.userData.sig !== sig) {
+      bubble.userData.sig = sig;
+      paintOrderBubble(bubble, order);
+    }
+  });
   const mark = LAYOUT.stations.find((item) => item.id === (goal?.act || hint.station));
   if (mark) {
     playPack.marker.position.x = mark.x;
@@ -906,7 +966,7 @@ function updatePlayVisuals(dt) {
 
 function updateSelect(dt) {
   if (!actor) return;
-  const sway = -0.55 + Math.sin(performance.now() / 900) * 0.4;
+  const sway = -0.18 + Math.sin(performance.now() / 900) * 0.16;
   actor.position.set(0, 0.4, 0);
   actor.rotation.y = sway;
   updateActor(actor, dt, { wave: true, select: true });
@@ -971,85 +1031,266 @@ function walkTo(x, z, act) {
   };
 }
 
-function bindInput() {
-  const pad = $("move");
-  const joy = $("joy");
-  const knob = $("knob");
-  const moveStick = (event) => {
-    let dx = event.clientX - stick.ox;
-    let dy = event.clientY - stick.oy;
-    const max = joy.offsetWidth * 0.42;
-    const dist = Math.hypot(dx, dy) || 1;
-    const clamped = Math.min(dist, max);
-    dx = (dx / dist) * clamped;
-    dy = (dy / dist) * clamped;
-    stick.x = dx / max;
-    stick.y = dy / max;
-    knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-  };
-  const endStick = (event) => {
-    if (event && stick.id !== null && event.pointerId !== stick.id) return;
-    stick.id = null;
-    stick.x = 0;
-    stick.y = 0;
-    knob.style.transform = "translate(-50%, -50%)";
-    joy.style.left = "8px";
-    joy.style.top = "0px";
-  };
-  pad.addEventListener("pointerdown", (event) => {
-    event.preventDefault();
-    const rect = pad.getBoundingClientRect();
-    const size = joy.offsetWidth || 148;
-    const left = clamp(event.clientX - rect.left - size / 2, 0, Math.max(0, rect.width - size));
-    const top = clamp(event.clientY - rect.top - size / 2, 0, Math.max(0, rect.height - size));
-    joy.style.left = `${left}px`;
-    joy.style.top = `${top}px`;
-    stick.ox = rect.left + left + size / 2;
-    stick.oy = rect.top + top + size / 2;
-    stick.id = event.pointerId;
-    moveStick(event);
-    audio.resume();
-  });
-  window.addEventListener("pointermove", (event) => {
-    if (event.pointerId !== stick.id) return;
-    moveStick(event);
-  });
-  window.addEventListener("pointerup", endStick);
-  window.addEventListener("pointercancel", endStick);
-  pad.addEventListener("contextmenu", (event) => event.preventDefault());
+const counterPlane = new Plane(new Vector3(0, 1, 0), -1.16);
+const counterHit = new Vector3();
+let pointer = null;
 
-  let tap = null;
-  renderer.domElement.addEventListener("pointerdown", (event) => {
-    if (state.mode !== "play" || state.paused) return;
-    tap = { id: event.pointerId, x: event.clientX, y: event.clientY };
-  });
-  renderer.domElement.addEventListener("pointerup", (event) => {
-    if (!tap || tap.id !== event.pointerId || state.mode !== "play" || state.paused) return;
-    const dx = event.clientX - tap.x;
-    const dy = event.clientY - tap.y;
-    tap = null;
-    if (Math.hypot(dx, dy) > 18) return;
-    const hit = floorPoint(event);
-    if (!hit) return;
-    let picked = null;
-    let best = 0.95;
-    for (const station of LAYOUT.stations) {
-      const dist = Math.hypot(hit.x - station.x, hit.z - station.z);
-      if (dist < best) {
-        best = dist;
-        picked = station;
-      }
+function project(x, y, z) {
+  const v = new Vector3(x, y, z).project(camera);
+  const rect = renderer.domElement.getBoundingClientRect();
+  return {
+    x: rect.left + (v.x * 0.5 + 0.5) * rect.width,
+    y: rect.top + (-v.y * 0.5 + 0.5) * rect.height,
+    ndcX: v.x,
+    ndcY: v.y,
+    behind: v.z > 1,
+  };
+}
+
+function pickAt(event) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  pointerNdc.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  pointerNdc.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointerNdc, camera);
+  const hits = raycaster.intersectObjects(playPack.scene.children, true);
+  for (const hit of hits) {
+    let obj = hit.object;
+    while (obj) {
+      if (obj.userData?.pick) return obj.userData.pick;
+      obj = obj.parent;
     }
-    if (picked) walkTo(picked.x, picked.z, picked.id);
-    else walkTo(hit.x, hit.z, null);
-    audio.click();
-  });
+  }
+  return null;
+}
 
-  $("action").addEventListener("pointerdown", (event) => {
-    event.preventDefault();
-    audio.resume();
-    onAction();
+function counterPoint(event) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  pointerNdc.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  pointerNdc.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointerNdc, camera);
+  return raycaster.ray.intersectPlane(counterPlane, counterHit) ? counterHit.clone() : null;
+}
+
+function nearestDrop(point) {
+  if (!point) return null;
+  let best = null;
+  let bestD = 0.72;
+  LAYOUT.mats.forEach((mat, index) => {
+    const dist = Math.hypot(point.x - mat.x, point.z - mat.z);
+    if (dist < bestD) {
+      bestD = dist;
+      best = { type: "plate", index };
+    }
   });
+  LAYOUT.customers.forEach((spot, index) => {
+    const dist = Math.hypot(point.x - spot.x, point.z - spot.z);
+    if (dist < 1.05 && dist < bestD + 0.35) {
+      bestD = dist;
+      best = { type: "customer", index };
+    }
+  });
+  const trash = LAYOUT.stations.find((station) => station.type === "trash");
+  if (Math.hypot(point.x - trash.x, point.z - trash.z) < 0.85) best = { type: "trash" };
+  return best;
+}
+
+function showGhost(spec, point) {
+  const group = playPack.drag;
+  if (!group) return;
+  while (group.children.length) group.remove(group.children[0]);
+  const food = makeFood(spec);
+  food.scale.setScalar(1.35);
+  group.add(food);
+  group.visible = true;
+  if (point) group.position.set(point.x, 1.25, point.z);
+}
+
+function clearGhost() {
+  const group = playPack.drag;
+  if (!group) return;
+  while (group.children.length) group.remove(group.children[0]);
+  group.visible = false;
+}
+
+function placeBun() {
+  const index = state.mats.findIndex((mat) => !mat.bun && !mat.sausage);
+  if (index < 0) return say("Three buns are already out.");
+  state.mats[index].bun = true;
+  state.focusMat = index;
+  audio.pickup();
+  buzz(8);
+}
+
+function placeOnGrill() {
+  const open = slots.find((slot) => slot.state === "empty");
+  if (!open) return say("Grill is full. Drag one off first.");
+  open.state = "cooking";
+  open.t = 0;
+  audio.grill();
+  buzz(10);
+}
+
+function servePlate(matIndex, customerIndex) {
+  const mat = state.mats[matIndex];
+  const order = state.orders[customerIndex];
+  const item = { kind: "dog", state: mat.sausage, toppings: mat.toppings.slice() };
+  if (!order) return say("Nobody is standing there.");
+  const matches = item.state === "cooked" && sameSet(order.toppings, item.toppings);
+  if (!matches) {
+    state.stats.wrong += 1;
+    state.combo = 0;
+    emote("shake");
+    audio.fail();
+    buzz(20);
+    floater(item.state === "burnt" ? "BURNT" : "WRONG", "bad");
+    say(item.state === "burnt" ? line(currentDef(), "burn") : line(currentDef(), "fail"));
+    return;
+  }
+  const gained = scoreServe(order, state.combo + 1);
+  state.combo += 1;
+  state.stats.bestCombo = Math.max(state.stats.bestCombo, state.combo);
+  state.score += gained.total;
+  state.stats.served += 1;
+  if (gained.perfect) state.stats.perfect += 1;
+  state.orders.splice(customerIndex, 1);
+  mat.bun = false;
+  mat.sausage = null;
+  mat.toppings.length = 0;
+  if (playPack.customers[customerIndex]) playPack.customers[customerIndex].userData.pop = 1;
+  floater(`+$${gained.total}`, "good");
+  if (gained.perfect) floater("PERFECT", "hot");
+  if (state.combo >= 2) floater(`x${state.combo}`, "hot");
+  audio.serve();
+  buzz(15);
+  emote("point");
+  say(line(currentDef(), "serve"), "quip");
+  playPack.bell.userData.ding = 1;
+  const spot = LAYOUT.customers[customerIndex];
+  for (let n = 0; n < 8; n += 1) playPack.steam.spawn(spot.x, 1.5, spot.z, 0xffd56a);
+}
+
+function finishDrag(drag, drop) {
+  if (drag.from === "grill") {
+    const slot = slots[drag.index];
+    if (drop?.type === "trash") {
+      slot.state = "empty";
+      slot.t = 0;
+      floater("TOSSED", "bad");
+      audio.grill();
+      return;
+    }
+    if (drop?.type === "plate" && (slot.state === "cooked" || slot.state === "burnt")) {
+      const mat = state.mats[drop.index];
+      if (!mat.bun) return say("Click the bun stack first.");
+      if (mat.sausage) return say("That bun already has a dog.");
+      const cooked = slot.state;
+      mat.sausage = cooked;
+      slot.state = "empty";
+      slot.t = 0;
+      state.focusMat = drop.index;
+      audio.pickup();
+      say(cooked === "burnt" ? "That one is burnt. It will not sell." : "Snapped onto the bun.");
+      return;
+    }
+    return say("Drag a cooked dog onto an open bun.");
+  }
+  const mat = state.mats[drag.index];
+  if (drop?.type === "trash") {
+    mat.bun = false;
+    mat.sausage = null;
+    mat.toppings.length = 0;
+    floater("TOSSED", "bad");
+    audio.grill();
+    return;
+  }
+  if (drop?.type === "customer" && mat.sausage) {
+    servePlate(drag.index, drop.index);
+    return;
+  }
+  if (drop?.type === "plate" && drop.index !== drag.index && !mat.sausage) {
+    const dest = state.mats[drop.index];
+    if (!dest.bun && !dest.sausage) {
+      dest.bun = true;
+      mat.bun = false;
+      state.focusMat = drop.index;
+      audio.pickup();
+      return;
+    }
+  }
+  if (mat.sausage) say("Drag it onto the customer whose bubble matches.");
+}
+
+function dropTarget(drag, event) {
+  const picked = pickAt(event);
+  const near = nearestDrop(counterPoint(event));
+  const ok = drag.from === "grill" ? ["plate", "trash"] : ["customer", "trash", "plate"];
+  if (picked && ok.includes(picked.type)) return picked;
+  return near || picked;
+}
+
+function onPointerDown(event) {
+  if (state.mode !== "play" || state.paused || state.phase === "end") return;
+  audio.resume();
+  const pick = pickAt(event);
+  let drag = null;
+  if (pick?.type === "grill") {
+    const slot = slots[pick.index];
+    if (slot.state === "cooked" || slot.state === "burnt") {
+      drag = { from: "grill", index: pick.index, spec: { bun: false, sausage: slot.state, toppings: [] } };
+    }
+  } else if (pick?.type === "plate") {
+    const mat = state.mats[pick.index];
+    state.focusMat = pick.index;
+    if (mat.sausage) drag = { from: "plate", index: pick.index, spec: { bun: true, sausage: mat.sausage, toppings: mat.toppings.slice() } };
+    else if (mat.bun) drag = { from: "bun", index: pick.index, spec: { bun: true, sausage: null, toppings: [] } };
+  }
+  pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, pick, drag, moved: false, pan: state.pan };
+  if (drag) showGhost(drag.spec, counterPoint(event));
+  renderer.domElement.setPointerCapture?.(event.pointerId);
+}
+
+function onPointerMove(event) {
+  if (!pointer || pointer.id !== event.pointerId) return;
+  const dx = event.clientX - pointer.x;
+  const dy = event.clientY - pointer.y;
+  if (Math.hypot(dx, dy) > 12) pointer.moved = true;
+  if (pointer.drag) {
+    const point = counterPoint(event);
+    if (point && playPack.drag) playPack.drag.position.set(point.x, 1.28, point.z);
+    return;
+  }
+  if (pointer.moved) state.pan = clamp(pointer.pan - dx * 0.008, -0.9, 0.9);
+}
+
+function onPointerUp(event) {
+  if (!pointer || pointer.id !== event.pointerId) return;
+  const info = pointer;
+  pointer = null;
+  clearGhost();
+  if (info.drag && info.moved) {
+    finishDrag(info.drag, dropTarget(info.drag, event));
+    return;
+  }
+  if (info.moved || !info.pick) return;
+  const pick = info.pick;
+  if (pick.type === "buns") placeBun();
+  else if (pick.type === "dogs") placeOnGrill();
+  else if (pick.type === "bottle") onTopping(pick.id, state.focusMat);
+  else if (pick.type === "grill") {
+    const slot = slots[pick.index];
+    if (slot.state === "cooking") say("Still on the heat. Wait for gold, then drag it.");
+    else if (slot.state === "empty") placeOnGrill();
+  } else if (pick.type === "plate") audio.click();
+}
+
+function bindInput() {
+  renderer.domElement.addEventListener("pointerdown", onPointerDown);
+  renderer.domElement.addEventListener("pointermove", onPointerMove);
+  renderer.domElement.addEventListener("pointerup", onPointerUp);
+  renderer.domElement.addEventListener("pointercancel", onPointerUp);
+
   document.querySelectorAll("[data-top]").forEach((button) => {
     button.addEventListener("pointerdown", (event) => {
       event.preventDefault();
@@ -1078,7 +1319,8 @@ function bindInput() {
       }
     }
     if (state.mode === "play" && !state.paused && state.phase !== "end") {
-      if (event.code === "Space" || event.code === "KeyE") onAction();
+      if (event.code === "Space") placeBun();
+      if (event.code === "KeyE") placeOnGrill();
       const toppingIndex = ["Digit1", "Digit2", "Digit3", "Digit4"].indexOf(event.code);
       if (toppingIndex >= 0) onTopping(TOPPINGS[toppingIndex].id);
       if (event.code === "KeyP") openPause();
@@ -1090,7 +1332,6 @@ function bindInput() {
     keys.clear();
     stick.x = 0;
     stick.y = 0;
-    $("knob").style.transform = "translate(-50%, -50%)";
   });
 }
 
@@ -1200,7 +1441,7 @@ function fail(message) {
 
 function bootReal() {
   const save = loadSave();
-  state.dprCap = Math.min(window.innerWidth, window.innerHeight) < 760 ? 1.6 : 2;
+  state.dprCap = Math.min(window.innerWidth, window.innerHeight) < 760 ? 1.25 : 1.75;
   if (save.hands === "left") document.body.classList.add("lefty");
   audio.setMuted(!!save.muted);
   audio.setMusic(save.music !== false);
@@ -1218,12 +1459,14 @@ function bootReal() {
     fail("This phone blocked 3D graphics, so the diner cannot open. Try another browser.");
     return;
   }
-  camera = new PerspectiveCamera(36, 1, 0.1, 80);
+  camera = new PerspectiveCamera(36, 1, 0.05, 80);
   try {
     const select = buildSelectScene();
     selectScene = select.scene;
     selectScene.userData.ring = select.ring;
     playPack = buildKitchen();
+    playPack.drag = new Group();
+    playPack.scene.add(playPack.drag);
     bindUi();
     bindInput();
     setMode("select");
@@ -1250,10 +1493,28 @@ function bootReal() {
       if (warm >= PRESIDENTS.length) clearInterval(warmer);
     }, 70);
     if (params.has("debug")) {
-      window.__HD = { state, player, slots, startShift, onAction, stick, say, walkTo };
+      window.__HD = {
+        state,
+        player,
+        slots,
+        startShift,
+        onAction,
+        stick,
+        say,
+        walkTo,
+        placeBun,
+        placeOnGrill,
+        servePlate,
+        finishDrag,
+        onTopping,
+        camera,
+        project,
+        LAYOUT,
+      };
     }
     if (params.has("play")) startShift();
-  } catch {
+  } catch (error) {
+    console.error(error);
     fail("The diner could not start on this device. Refresh and try again.");
   }
 }
