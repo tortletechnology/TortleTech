@@ -135,6 +135,24 @@ function floorTexture() {
   }, 512, 512);
 }
 
+function stationLabel(text) {
+  const tex = canvasTexture((g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    g.fillStyle = "rgba(20, 10, 8, 0.9)";
+    g.beginPath();
+    g.roundRect(6, 10, w - 12, h - 20, 36);
+    g.fill();
+    g.fillStyle = "#fff6ea";
+    g.font = "800 78px Arial, sans-serif";
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.fillText(text, w / 2, h / 2 + 2);
+  }, 360, 140);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  sprite.scale.set(1.05, 0.4, 1);
+  return sprite;
+}
+
 function signTexture(text, color) {
   return canvasTexture((g, w, h) => {
     g.clearRect(0, 0, w, h);
@@ -716,12 +734,36 @@ export function buildKitchen() {
     return group;
   });
 
-  const marker = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.04, 8, 28), new THREE.MeshBasicMaterial({ color: 0xffd56a }));
+  const marker = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.045, 8, 28), new THREE.MeshBasicMaterial({ color: 0xffd56a }));
   marker.rotation.x = -PI / 2;
-  marker.position.y = 0.03;
+  marker.position.y = 0.035;
   scene.add(marker);
 
-  return { scene, slots, mats, customers, bell, grillBed, grillLight, marker, steam: createSteam(scene) };
+  const padColors = {
+    buns: 0xf2c48a,
+    dogs: 0xf0a0b0,
+    grill: 0xff7a32,
+    board: 0xf0b429,
+    serve: 0x3dbe58,
+    trash: 0x9aa3ab,
+  };
+  const padNames = { buns: "BUNS", dogs: "DOGS", grill: "GRILL", board: "BUILD", serve: "SERVE", trash: "TRASH" };
+  const stationPads = {};
+  LAYOUT.stations.forEach((station) => {
+    const pad = new THREE.Mesh(
+      new THREE.TorusGeometry(0.5, 0.055, 8, 28),
+      new THREE.MeshBasicMaterial({ color: padColors[station.type] || 0xffd56a }),
+    );
+    pad.rotation.x = -PI / 2;
+    pad.position.set(station.x, 0.04, station.z);
+    scene.add(pad);
+    const label = stationLabel(padNames[station.type] || station.type);
+    label.position.set(station.x, 1.62, station.z);
+    scene.add(label);
+    stationPads[station.id] = pad;
+  });
+
+  return { scene, slots, mats, customers, bell, grillBed, grillLight, marker, stationPads, steam: createSteam(scene) };
 }
 
 export function createSteam(scene) {
@@ -766,16 +808,13 @@ export function createSteam(scene) {
 
 export function framePlayCamera(aspect, focus) {
   const portrait = aspect < 0.95;
-  const fov = portrait ? 50 : 38;
-  const vFov = (fov * PI) / 180;
-  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * Math.max(aspect, 0.35));
-  const wantW = portrait ? 7.6 : 12.6;
-  const dist = wantW / (2 * Math.tan(Math.max(0.2, hFov / 2)));
-  const x = portrait ? Math.max(-3.15, Math.min(3.15, focus.x)) : Math.max(-2.2, Math.min(2.2, focus.x * 0.45));
-  const z = portrait ? Math.max(-1.55, Math.min(0.35, focus.z * 0.28 - 0.95)) : -1.05;
-  const target = new THREE.Vector3(x, 0.45, z);
-  const dir = new THREE.Vector3(0.15, 0.82, 1).normalize();
-  const pos = target.clone().addScaledVector(dir, dist);
+  const fov = portrait ? 52 : 40;
+  const back = portrait ? 5.6 : 6.4;
+  const up = portrait ? 4.8 : 5.4;
+  const ahead = portrait ? 1.3 : 1.0;
+  const lookY = portrait ? 1.0 : 0.8;
+  const target = new THREE.Vector3(focus.x, lookY, focus.z - ahead);
+  const pos = new THREE.Vector3(focus.x, up, focus.z + back);
   return { pos, target, fov, aspect };
 }
 

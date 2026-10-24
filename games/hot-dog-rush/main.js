@@ -11,7 +11,7 @@ import {
   TOPPINGS,
 } from "./logic.js";
 import { createAudio } from "./audio.js";
-import { PerspectiveCamera } from "./vendor/three.module.min.js";
+import { PerspectiveCamera, Plane, Raycaster, Vector2, Vector3 } from "./vendor/three.module.min.js";
 import {
   buildKitchen,
   buildSelectScene,
@@ -27,14 +27,19 @@ import {
 
 const COOK = 3.7;
 const BURN = 3.35;
-const SPEED = 4.65;
+const SPEED = 5.35;
 const SAVE_KEY = "hotdog-rush-v1";
 const params = new URLSearchParams(location.search);
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const $ = (id) => document.getElementById(id);
 const audio = createAudio();
-const stick = { id: null, x: 0, y: 0 };
+const stick = { id: null, x: 0, y: 0, ox: 0, oy: 0 };
+const raycaster = new Raycaster();
+const pointerNdc = new Vector2();
+const floorPlane = new Plane(new Vector3(0, 1, 0), 0);
+const floorHit = new Vector3();
+let goal = null;
 const keys = new Set();
 const actorCache = new Map();
 
@@ -373,16 +378,33 @@ function nearestStation() {
 }
 
 function movePlayer(dt, moving, dir) {
+  let speed = SPEED;
+  if (moving) goal = null;
+  else if (goal && state.phase !== "end") {
+    const dx = goal.x - player.x;
+    const dz = goal.z - player.z;
+    const dist = Math.hypot(dx, dz);
+    const arrived = goal.act ? dist <= LAYOUT.reach : dist < 0.22;
+    if (arrived) {
+      const act = goal.act;
+      goal = null;
+      if (act) onAction(LAYOUT.stations.find((station) => station.id === act), true);
+      return;
+    }
+    dir = { x: dx / dist, y: dz / dist };
+    moving = true;
+    speed = SPEED * 1.2;
+  }
   if (!moving) return;
-  let nx = player.x + dir.x * SPEED * dt;
-  let nz = player.z + dir.y * SPEED * dt;
+  let nx = player.x + dir.x * speed * dt;
+  let nz = player.z + dir.y * speed * dt;
   const { bounds, trashRadius } = LAYOUT;
   nx = clamp(nx, bounds.minX, bounds.maxX);
   nz = clamp(nz, bounds.minZ, bounds.maxZ);
   const trash = LAYOUT.stations.find((station) => station.type === "trash");
   const dx = nx - trash.x;
   const dz = nz - trash.z;
-  const min = trashRadius + 0.32;
+  const min = trashRadius + 0.28;
   const dist = Math.hypot(dx, dz);
   if (dist < min && dist > 0.0001) {
     nx = clamp(trash.x + (dx / dist) * min, bounds.minX, bounds.maxX);
@@ -393,7 +415,27 @@ function movePlayer(dt, moving, dir) {
   const targetYaw = Math.atan2(dir.x, dir.y);
   let delta = targetYaw - player.yaw;
   delta = Math.atan2(Math.sin(delta), Math.cos(delta));
-  player.yaw += delta * Math.min(1, dt * 12);
+  player.yaw += delta * Math.min(1, dt * 18);
+}
+
+function nextStep() {
+  const hands = state.hands;
+  const mat = state.mats[0];
+  const cooked = slots.some((slot) => slot.state === "cooked");
+  const cooking = slots.some((slot) => slot.state === "cooking" || slot.state === "cooked" || slot.state === "burnt");
+  if (hands?.state === "burnt" || (hands?.kind === "sausage" && hands.state === "burnt")) {
+    return { station: "trash", text: "Trash the burnt dog" };
+  }
+  if (hands?.kind === "dog" && hands.state === "cooked") return { station: "serve", text: "Serve it at the window" };
+  if (hands?.kind === "sausage" && hands.state === "raw") return { station: "grill", text: "Drop the dog on the grill" };
+  if (hands?.kind === "sausage") return { station: "board", text: "Stack the dog on the bun" };
+  if (hands?.kind === "bun") return { station: "board", text: "Put the bun on the board" };
+  if (mat.bun && mat.sausage) return { station: "board", text: "Match the ticket, then grab the dog" };
+  if (mat.bun && cooked) return { station: "grill", text: "Take the gold dog off the grill" };
+  if (mat.bun && cooking) return { station: "dogs", text: "Grab another dog, or wait for gold" };
+  if (mat.bun) return { station: "dogs", text: "Grab a raw dog" };
+  if (cooked) return { station: "buns", text: "Grab a bun for that dog" };
+  return { station: "buns", text: "Hit GO. It runs you to the buns." };
 }
 
 function simulate(dt) {
@@ -477,14 +519,16 @@ function emote(kind) {
   state.shake = reduceMotion ? 0 : kind === "point" ? 0.08 : 0.11;
 }
 
-function onAction() {
+function onAction(forced, fromWalk) {
   if (state.mode !== "play" || state.paused || state.phase === "end") return;
   const now = performance.now();
-  if (now < nextActionAt) return;
+  if (!fromWalk && now < nextActionAt) return;
   nextActionAt = now + 160;
-  const station = nearestStation();
+  const station = forced || nearestStation();
   if (!station) {
-    say("Walk onto a gold ring.");
+    const hint = nextStep();
+    const target = LAYOUT.stations.find((item) => item.id === hint.station);
+    if (target) walkTo(target.x, target.z, target.id);
     audio.click();
     return;
   }
@@ -644,7 +688,10 @@ function onTopping(id) {
 
 function describeAction() {
   const station = nearestStation();
-  if (!station) return ["MOVE", "Find a station", false];
+  if (!station) {
+    const where = { buns: "BUNS", dogs: "DOGS", grill: "GRILL", board: "BUILD", serve: "SERVE", trash: "TRASH" };
+    return ["GO", `Run to ${where[nextStep().station]}`, true];
+  }
   const hands = state.hands;
   if (station.type === "buns") return hands ? ["FULL", "Hands are full", false] : ["BUN", "Grab a bun", true];
   if (station.type === "dogs") return hands ? ["FULL", "Hands are full", false] : ["DOG", "Grab a raw dog", true];
@@ -822,12 +869,20 @@ function updatePlayVisuals(dt) {
   });
 
   const station = nearestStation();
-  playPack.marker.visible = !!station && state.phase !== "end";
-  if (station) {
-    playPack.marker.position.x = station.x;
-    playPack.marker.position.z = station.z;
-    const pulse = 1 + Math.sin(performance.now() / 220) * 0.06;
-    playPack.marker.scale.set(pulse, pulse, 1);
+  const hint = nextStep();
+  const guide = $("guide-text");
+  if (guide && guide.textContent !== hint.text) guide.textContent = hint.text;
+  Object.entries(playPack.stationPads).forEach(([id, pad]) => {
+    const here = station?.id === id;
+    const suggested = hint.station === id;
+    const pulse = suggested ? 1.08 + Math.sin(performance.now() / 180) * 0.08 : here ? 1.05 : 0.92;
+    pad.scale.setScalar(pulse);
+  });
+  playPack.marker.visible = state.phase !== "end";
+  const mark = LAYOUT.stations.find((item) => item.id === (goal?.act || hint.station));
+  if (mark) {
+    playPack.marker.position.x = mark.x;
+    playPack.marker.position.z = mark.z;
   }
 
   steamAcc += dt;
@@ -844,12 +899,8 @@ function updatePlayVisuals(dt) {
   playPack.bell.rotation.z = Math.sin(performance.now() / 30) * ding * 0.4;
   playPack.bell.userData.ding = ding * Math.exp(-3.2 * dt);
 
-  applyPlayCamera(camera.aspect, reduceMotion ? 1 : 1 - Math.exp(-6 * dt));
-  if (state.shake > 0) {
-    camera.position.x += (Math.random() - 0.5) * state.shake;
-    camera.position.y += (Math.random() - 0.5) * state.shake * 0.6;
-    state.shake *= Math.exp(-3.5 * dt);
-  }
+  applyPlayCamera(camera.aspect, reduceMotion ? 1 : 1 - Math.exp(-16 * dt));
+  if (state.shake > 0) state.shake *= Math.exp(-3.5 * dt);
   playPack.grillBed.material.emissiveIntensity = 0.25 + slots.filter((slot) => slot.state === "cooking" || slot.state === "cooked").length * 0.12;
 }
 
@@ -902,16 +953,32 @@ function openPause() {
   $("modal-pause").hidden = false;
 }
 
+function floorPoint(event) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  pointerNdc.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  pointerNdc.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointerNdc, camera);
+  return raycaster.ray.intersectPlane(floorPlane, floorHit) ? floorHit.clone() : null;
+}
+
+function walkTo(x, z, act) {
+  const { bounds } = LAYOUT;
+  goal = {
+    x: clamp(x, bounds.minX, bounds.maxX),
+    z: clamp(z, bounds.minZ, bounds.maxZ),
+    act: act || null,
+  };
+}
+
 function bindInput() {
+  const pad = $("move");
   const joy = $("joy");
   const knob = $("knob");
   const moveStick = (event) => {
-    const rect = joy.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    let dx = event.clientX - cx;
-    let dy = event.clientY - cy;
-    const max = rect.width * 0.36;
+    let dx = event.clientX - stick.ox;
+    let dy = event.clientY - stick.oy;
+    const max = joy.offsetWidth * 0.42;
     const dist = Math.hypot(dx, dy) || 1;
     const clamped = Math.min(dist, max);
     dx = (dx / dist) * clamped;
@@ -926,21 +993,57 @@ function bindInput() {
     stick.x = 0;
     stick.y = 0;
     knob.style.transform = "translate(-50%, -50%)";
+    joy.style.left = "8px";
+    joy.style.top = "0px";
   };
-  joy.addEventListener("pointerdown", (event) => {
+  pad.addEventListener("pointerdown", (event) => {
     event.preventDefault();
+    const rect = pad.getBoundingClientRect();
+    const size = joy.offsetWidth || 148;
+    const left = clamp(event.clientX - rect.left - size / 2, 0, Math.max(0, rect.width - size));
+    const top = clamp(event.clientY - rect.top - size / 2, 0, Math.max(0, rect.height - size));
+    joy.style.left = `${left}px`;
+    joy.style.top = `${top}px`;
+    stick.ox = rect.left + left + size / 2;
+    stick.oy = rect.top + top + size / 2;
     stick.id = event.pointerId;
-    joy.setPointerCapture(event.pointerId);
     moveStick(event);
     audio.resume();
   });
-  joy.addEventListener("pointermove", (event) => {
+  window.addEventListener("pointermove", (event) => {
     if (event.pointerId !== stick.id) return;
     moveStick(event);
   });
-  joy.addEventListener("pointerup", endStick);
-  joy.addEventListener("pointercancel", endStick);
-  joy.addEventListener("contextmenu", (event) => event.preventDefault());
+  window.addEventListener("pointerup", endStick);
+  window.addEventListener("pointercancel", endStick);
+  pad.addEventListener("contextmenu", (event) => event.preventDefault());
+
+  let tap = null;
+  renderer.domElement.addEventListener("pointerdown", (event) => {
+    if (state.mode !== "play" || state.paused) return;
+    tap = { id: event.pointerId, x: event.clientX, y: event.clientY };
+  });
+  renderer.domElement.addEventListener("pointerup", (event) => {
+    if (!tap || tap.id !== event.pointerId || state.mode !== "play" || state.paused) return;
+    const dx = event.clientX - tap.x;
+    const dy = event.clientY - tap.y;
+    tap = null;
+    if (Math.hypot(dx, dy) > 18) return;
+    const hit = floorPoint(event);
+    if (!hit) return;
+    let picked = null;
+    let best = 0.95;
+    for (const station of LAYOUT.stations) {
+      const dist = Math.hypot(hit.x - station.x, hit.z - station.z);
+      if (dist < best) {
+        best = dist;
+        picked = station;
+      }
+    }
+    if (picked) walkTo(picked.x, picked.z, picked.id);
+    else walkTo(hit.x, hit.z, null);
+    audio.click();
+  });
 
   $("action").addEventListener("pointerdown", (event) => {
     event.preventDefault();
@@ -1147,7 +1250,7 @@ function bootReal() {
       if (warm >= PRESIDENTS.length) clearInterval(warmer);
     }, 70);
     if (params.has("debug")) {
-      window.__HD = { state, player, slots, startShift, onAction, stick, say };
+      window.__HD = { state, player, slots, startShift, onAction, stick, say, walkTo };
     }
     if (params.has("play")) startShift();
   } catch {
