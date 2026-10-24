@@ -249,7 +249,7 @@ const S = {
   onions: [null, null],
   fries: [false, false, false],
   fryer: null,
-  slots: [],
+  slots: Array.from({ length: 5 }, () => ({ body: null, cash: null })),
   hand: null,
   tool: null,
   throws: [],
@@ -1268,8 +1268,9 @@ function dropSpawn(x, y) {
 }
 
 function sourceAt(x, y) {
+  if (S.screen !== "play") return null;
   for (let i = 0; i < 5; i++) {
-    const cash = S.slots[i].cash;
+    const cash = S.slots[i] && S.slots[i].cash;
     if (cash && Math.hypot(x - cash.x, y - cash.y) < 60) return { type: "cash", index: i };
   }
   if (inRect(CRATE, x, y)) return "crate";
@@ -1447,13 +1448,16 @@ function pointerPos(event) {
 }
 
 function onDown(event) {
-  if (gesture) return;
   if (event.cancelable) event.preventDefault();
   const p = pointerPos(event);
   S.px = p.x;
   S.py = p.y;
+  if (S.screen === "title" || S.screen === "end") {
+    begin(S.level);
+    gesture = null;
+    return;
+  }
   gesture = { x: p.x, y: p.y, moved: false, hadHand: !!S.hand, source: sourceAt(p.x, p.y), pointerId: event.pointerId };
-  try { canvas.setPointerCapture?.(event.pointerId); } catch { /* pointer already gone */ }
 }
 
 function onMove(event) {
