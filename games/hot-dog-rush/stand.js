@@ -71,7 +71,8 @@ const KETCHUP = { x: 55, y: 125, w: 90, h: 220 };
 const MUSTARD = { x: 128, y: 352, w: 48, h: 96 };
 const RELISH = { x: 186, y: 356, w: 48, h: 96 };
 const FRYER = { x: 96, y: 478, w: 170, h: 64 };
-const TRASH = { x: 0, y: 530, w: 150, h: 190 };
+const TRASH = { x: 0, y: 470, w: 210, h: 250 };
+const HAND_LIFT = 48;
 const PATTIES = { x: 760, y: 330, w: 90, h: 90 };
 const BURGER_CRATE = { x: 700, y: 250, w: 110, h: 90 };
 const ONION_BIN = { x: 242, y: 358, w: 72, h: 88 };
@@ -112,7 +113,8 @@ const TIPS = [
 ];
 
 const HINTS = [
-  "Undercooked or burnt hot dogs pay less.",
+  "Toss burnt food in the trash can on the left.",
+  "A burnt hot dog gets thrown back at you.",
   "Hand over part of an order and they wait a little longer.",
   "The wrong topping comes out of the bill.",
   "Faster service pays more.",
@@ -183,6 +185,9 @@ const S = {
   slots: [],
   hand: null,
   tool: null,
+  throws: [],
+  rejects: [null, null, null],
+  shake: 0,
   floats: [],
   px: 0,
   py: 0,
@@ -246,6 +251,9 @@ function begin(level) {
   S.tip = level === 1 ? 0 : 99;
   S.hand = null;
   S.tool = null;
+  S.throws = [];
+  S.rejects = [null, null, null];
+  S.shake = 0;
   S.floats = [];
   S.result = null;
   S.buns = [null, null, null];
@@ -353,6 +361,8 @@ function sim() {
   for (const slot of S.slots) {
     if (slot.body) tickBody(slot);
   }
+  tickThrows();
+  if (S.shake > 0) S.shake -= 1;
   for (const floater of S.floats) floater.life -= 1;
   S.floats = S.floats.filter((floater) => floater.life > 0);
   if (S.toast) {
@@ -384,8 +394,16 @@ function cookOne(item) {
 }
 
 function cookAll() {
-  S.dogs.forEach(cookOne);
-  S.patties.forEach(cookOne);
+  S.dogs.forEach((dog, index) => {
+    const before = dog ? dog.state : 0;
+    cookOne(dog);
+    if (dog && before < 3 && dog.state >= 3) float("Burnt", DOG_SPOTS[index].x, DOG_SPOTS[index].y - 36, "#ff8a70");
+  });
+  S.patties.forEach((patty, index) => {
+    const before = patty ? patty.state : 0;
+    cookOne(patty);
+    if (patty && before < 3 && patty.state >= 3) float("Burnt", PATTY_SPOTS[index].x, PATTY_SPOTS[index].y - 28, "#ff8a70");
+  });
   S.onions.forEach(cookOne);
   if (S.fryer) {
     S.fryer.left -= 1;
@@ -626,6 +644,10 @@ function give(slot) {
     body.sat += offer.sat;
     body.items -= 1;
   } else if (hand.kind === "hot_dog" || hand.kind === "burger") {
+    if (burntPlate(hand)) {
+      hurl(slot);
+      return true;
+    }
     const quote = quoteSnack(body.order, { kind: hand.kind, ...hand.plate });
     if (!quote.ok) return false;
     body.price += quote.price;
@@ -683,13 +705,164 @@ function collect(index) {
   advanceTip(6);
 }
 
+function burntPlate(hand) {
+  if (!hand || !hand.plate) return false;
+  if (hand.kind === "hot_dog") return hand.plate.sausage >= 4;
+  if (hand.kind === "burger") return hand.plate.burger >= 4;
+  return false;
+}
+
+function hurl(slot) {
+  const body = slot.body;
+  const hand = S.hand;
+  body.mood = 3;
+  body.shaking = true;
+  S.meter = applyMeter(S.meter, -1.2);
+  float("Burnt!", body.x, 140, "#ff6a4a");
+  tone(120, 0.2, "sawtooth", 0.08);
+  const spot = S.rejects.findIndex((item) => !item);
+  S.throws.push({
+    plate: hand.plate,
+    kind: hand.kind,
+    x: body.x,
+    y: 240,
+    vx: (640 - body.x) / 18,
+    vy: 5,
+    rot: -0.5,
+    life: 0,
+    spot,
+  });
+  S.hand = null;
+  S.shake = 8;
+}
+
+function tickThrows() {
+  S.throws = S.throws.filter((ball) => {
+    ball.life += 1;
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+    ball.vy += 0.9;
+    ball.rot += 0.2;
+    if (ball.y < 600 && ball.life < 36) return true;
+    const x = Math.max(340, Math.min(1040, ball.x));
+    const y = 608;
+    const spot = S.rejects.findIndex((item) => !item);
+    if (spot >= 0) S.rejects[spot] = { plate: ball.plate, kind: ball.kind, x, y };
+    S.shake = 14;
+    tone(80, 0.14, "square", 0.07);
+    float("Ow!", x, y - 40, "#ffd0c0");
+    return false;
+  });
+}
+
+function aimPoints(x, y) {
+  return [{ x, y }, { x, y: y - HAND_LIFT }];
+}
+
+function dropCandidates(x, y) {
+  const hand = S.hand;
+  if (!hand) return [];
+  const found = [];
+  const offer = (score, run, mark) => {
+    if (score < 0) return;
+    found.push({ score, run, mark });
+  };
+  for (const p of aimPoints(x, y)) {
+    if (inRect(TRASH, p.x, p.y)) offer(0, () => trashHand(), TRASH);
+    else {
+      const d = Math.hypot(p.x - 100, p.y - 620);
+      if (d < 130) offer(d, () => trashHand(), TRASH);
+    }
+    if (hand.kind === "dog") {
+      BUN_SPOTS.forEach((spot, index) => {
+        if (!S.buns[index] || S.buns[index].sausage) return;
+        const d = Math.hypot(p.x - spot.x, p.y - spot.y);
+        if (d < 110) offer(d, () => { if (!acceptPlate(S.buns, index, "sausage", hand.state + 1)) restore(); }, spotRect(spot));
+      });
+      DOG_SPOTS.forEach((spot, index) => {
+        if (S.dogs[index]) return;
+        const d = Math.hypot(p.x - spot.x, p.y - spot.y);
+        if (d < 100) offer(d + 6, () => parkGrill(S.dogs, index), spotRect(spot));
+      });
+    }
+    if (hand.kind === "patty") {
+      BBUN_SPOTS.forEach((spot, index) => {
+        if (!S.bbuns[index] || S.bbuns[index].burger) return;
+        const d = Math.hypot(p.x - spot.x, p.y - spot.y);
+        if (d < 100) offer(d, () => { if (!acceptPlate(S.bbuns, index, "burger", hand.state + 1)) restore(); }, spotRect(spot));
+      });
+      PATTY_SPOTS.forEach((spot, index) => {
+        if (S.patties[index]) return;
+        const d = Math.hypot(p.x - spot.x, p.y - spot.y);
+        if (d < 90) offer(d + 6, () => parkGrill(S.patties, index), spotRect(spot));
+      });
+    }
+    if (hand.plate && (hand.kind === "hot_dog" || hand.kind === "plain-bun")) {
+      BUN_SPOTS.forEach((spot, index) => {
+        if (S.buns[index]) return;
+        const d = Math.hypot(p.x - spot.x, p.y - spot.y);
+        if (d < 100) offer(d + 4, () => parkPlate(S.buns, index), spotRect(spot));
+      });
+    }
+    if (hand.plate && (hand.kind === "burger" || hand.kind === "plain-burger")) {
+      BBUN_SPOTS.forEach((spot, index) => {
+        if (S.bbuns[index]) return;
+        const d = Math.hypot(p.x - spot.x, p.y - spot.y);
+        if (d < 90) offer(d + 4, () => parkPlate(S.bbuns, index), spotRect(spot));
+      });
+    }
+    if (hand.kind === "onion") {
+      const piles = [[S.buns, BUN_SPOTS], [S.bbuns, BBUN_SPOTS]];
+      for (const [list, spots] of piles) {
+        spots.forEach((spot, index) => {
+          if (!list[index] || list[index].onion) return;
+          const d = Math.hypot(p.x - spot.x, p.y - spot.y);
+          if (d < 100) offer(d, () => plantOnion(list, index), spotRect(spot));
+        });
+      }
+    }
+    if (hand.kind === "hot_dog" || hand.kind === "burger" || hand.kind === "fries") {
+      S.slots.forEach((slot) => {
+        const body = slot.body;
+        if (!body || body.state !== "wait") return;
+        if (p.y > 660 || Math.abs(p.x - body.x) > 170) return;
+        const d = Math.abs(p.x - body.x) + Math.max(0, p.y - 500) * 0.2;
+        offer(d, () => { if (!give(slot)) restore(); }, { x: body.x - 70, y: 150, w: 140, h: 220 });
+      });
+    }
+  }
+  return found;
+}
+
+function spotRect(spot) {
+  return { x: spot.x - 50, y: spot.y - 36, w: 100, h: 72 };
+}
+
+function parkGrill(list, index) {
+  list[index] = { left: S.hand.left, state: S.hand.state, marks: S.hand.marks };
+  S.hand = null;
+  tone(300, 0.05, "sawtooth", 0.03);
+}
+
+function parkPlate(list, index) {
+  list[index] = S.hand.plate;
+  S.hand = null;
+}
+
+function plantOnion(list, index) {
+  list[index].onion = S.hand.state + 1;
+  S.hand = null;
+  tone(640, 0.05, "sine", 0.04);
+}
+
 function pickDraggable(x, y) {
-  for (let i = 0; i < 3; i++) if (S.buns[i] && near(BUN_SPOTS[i], x, y, 52)) return { type: "bun", index: i };
-  for (let i = 0; i < 3; i++) if (S.bbuns[i] && near(BBUN_SPOTS[i], x, y, 48)) return { type: "bbun", index: i };
-  for (let i = 0; i < 3; i++) if (S.dogs[i] && near(DOG_SPOTS[i], x, y, 46)) return { type: "dog", index: i };
-  for (let i = 0; i < 3; i++) if (S.patties[i] && near(PATTY_SPOTS[i], x, y, 42)) return { type: "patty", index: i };
-  for (let i = 0; i < 2; i++) if (S.onions[i] && near(ONION_SPOTS[i], x, y, 40)) return { type: "onion", index: i };
-  for (let i = 0; i < 3; i++) if (S.fries[i] && near(FRIE_SPOTS[i], x, y, 36)) return { type: "fries", index: i };
+  for (let i = 0; i < 3; i++) if (S.buns[i] && near(BUN_SPOTS[i], x, y, 84)) return { type: "bun", index: i };
+  for (let i = 0; i < 3; i++) if (S.bbuns[i] && near(BBUN_SPOTS[i], x, y, 72)) return { type: "bbun", index: i };
+  for (let i = 0; i < 3; i++) if (S.dogs[i] && near(DOG_SPOTS[i], x, y, 78)) return { type: "dog", index: i };
+  for (let i = 0; i < 3; i++) if (S.patties[i] && near(PATTY_SPOTS[i], x, y, 56)) return { type: "patty", index: i };
+  for (let i = 0; i < 2; i++) if (S.onions[i] && near(ONION_SPOTS[i], x, y, 48)) return { type: "onion", index: i };
+  for (let i = 0; i < 3; i++) if (S.fries[i] && near(FRIE_SPOTS[i], x, y, 48)) return { type: "fries", index: i };
+  for (let i = 0; i < 3; i++) if (S.rejects[i] && near(S.rejects[i], x, y, 80)) return { type: "reject", index: i };
   return null;
 }
 
@@ -702,40 +875,22 @@ function lift(hit) {
   else if (hit.type === "fries") {
     S.fries[hit.index] = false;
     S.hand = { kind: "fries", origin: { pool: S.fries, index: hit.index } };
+  } else if (hit.type === "reject") {
+    const item = S.rejects[hit.index];
+    S.rejects[hit.index] = null;
+    S.hand = { kind: item.kind, plate: item.plate, origin: { pool: S.rejects, index: hit.index } };
   }
 }
 
 function dropAt(x, y) {
   if (!S.hand) return;
-  if (inRect(TRASH, x, y)) {
-    trashHand();
+  const found = dropCandidates(x, y);
+  if (!found.length) {
+    restore();
     return;
   }
-  if (S.hand.kind === "dog") {
-    const index = BUN_SPOTS.findIndex((spot, i) => S.buns[i] && near(spot, x, y, 56));
-    if (index >= 0 && acceptPlate(S.buns, index, "sausage", S.hand.state + 1)) return;
-  }
-  if (S.hand.kind === "patty") {
-    const index = BBUN_SPOTS.findIndex((spot, i) => S.bbuns[i] && near(spot, x, y, 54));
-    if (index >= 0 && acceptPlate(S.bbuns, index, "burger", S.hand.state + 1)) return;
-  }
-  if (S.hand.kind === "onion") {
-    const pools = [[S.buns, BUN_SPOTS], [S.bbuns, BBUN_SPOTS]];
-    for (const [list, spots] of pools) {
-      const index = spots.findIndex((spot, i) => list[i] && near(spot, x, y, 54));
-      if (index >= 0 && list[index] && !list[index].onion) {
-        list[index].onion = S.hand.state + 1;
-        S.hand = null;
-        tone(640, 0.05, "sine", 0.04);
-        return;
-      }
-    }
-  }
-  for (let i = 0; i < 5; i++) {
-    const body = S.slots[i].body;
-    if (body && Math.abs(x - body.x) < 150 && y < sillAt(body.x) + 28 && give(S.slots[i])) return;
-  }
-  restore();
+  found.sort((a, b) => a.score - b.score);
+  found[0].run();
 }
 
 function tapStack(x, y) {
@@ -865,11 +1020,12 @@ function onDown(event) {
 }
 
 function onMove(event) {
+  if (event.cancelable) event.preventDefault();
   const p = pointerPos(event);
   S.px = p.x;
   S.py = p.y;
   if (!gesture) return;
-  if (Math.hypot(p.x - gesture.x, p.y - gesture.y) > 16) {
+  if (Math.hypot(p.x - gesture.x, p.y - gesture.y) > 8) {
     gesture.moved = true;
     if (!S.hand && S.screen === "play" && !S.banner) {
       const hit = pickDraggable(gesture.x, gesture.y);
@@ -1007,7 +1163,7 @@ function drawPeople() {
   for (const slot of S.slots) {
     const body = slot.body;
     if (!body) continue;
-    const shake = body.shaking ? Math.sin(S.frame * 1.4) * 3 : 0;
+    const shake = body.shaking || body.mood >= 3 ? Math.sin(S.frame * 1.6) * (body.mood >= 3 ? 8 : 3) : 0;
     const look = body.look[0];
     const flip = !!seenLook[look];
     seenLook[look] = true;
@@ -1036,7 +1192,13 @@ function drawFood() {
   S.bbuns.forEach((plate, index) => plate && drawPlate(plate, BBUN_SPOTS[index].x, BBUN_SPOTS[index].y, "burger"));
   S.dogs.forEach((dog, index) => {
     if (!dog) return;
-    if (dog.state === 2) {
+    if (dog.state >= 3) {
+      ctx.save();
+      ctx.shadowColor = "rgba(255, 64, 40, 0.95)";
+      ctx.shadowBlur = 18;
+      drawImageW(img.dog3, DOG_SPOTS[index].x, DOG_SPOTS[index].y, 118);
+      ctx.restore();
+    } else if (dog.state === 2) {
       ctx.save();
       ctx.shadowColor = "rgba(255, 214, 60, 0.95)";
       ctx.shadowBlur = 22;
@@ -1070,6 +1232,14 @@ function drawFood() {
     ctx.restore();
   }
   S.fries.forEach((ready, index) => ready && drawImageH(img.fries, FRIE_SPOTS[index].x, FRIE_SPOTS[index].y, 48));
+  S.rejects.forEach((item) => {
+    if (!item) return;
+    ctx.save();
+    ctx.shadowColor = "rgba(255, 64, 40, 0.85)";
+    ctx.shadowBlur = 16;
+    drawPlate(item.plate, item.x, item.y, item.kind);
+    ctx.restore();
+  });
   for (const slot of S.slots) {
     if (!slot.cash) continue;
     drawImageH(img.cash, slot.cash.x, slot.cash.y, 64);
@@ -1109,7 +1279,7 @@ function ring(rect) {
 function drawHand() {
   if (!S.hand) return;
   const x = S.px;
-  const y = S.py - 36;
+  const y = S.py - HAND_LIFT;
   if (S.hand.kind === "dog") drawImageW(img["dog" + cookVisual(S.hand.state)], x, y, 120);
   else if (S.hand.kind === "patty") drawImageH(img["patty" + cookVisual(S.hand.state)], x, y, 52);
   else if (S.hand.kind === "onion") drawImageH(S.hand.state >= 2 ? img.onion1 : img.onion0, x, y, 40);
@@ -1117,6 +1287,56 @@ function drawHand() {
   else if (S.hand.kind === "plain-bun") drawImageW(img.bun, x, y, 160);
   else if (S.hand.kind === "plain-burger") drawImageH(img.bbun, x, y, 70);
   else if (S.hand.plate) drawPlate(S.hand.plate, x, y, S.hand.kind);
+}
+
+function drawAim() {
+  if (!S.hand || S.screen !== "play") return;
+  const found = dropCandidates(S.px, S.py);
+  found.sort((a, b) => a.score - b.score);
+  const hot = found[0] && found[0].mark === TRASH;
+  ctx.save();
+  ctx.strokeStyle = hot ? "#ff5a3c" : "rgba(255, 246, 232, 0.85)";
+  ctx.lineWidth = hot ? 6 : 3;
+  ctx.setLineDash(hot ? [] : [8, 6]);
+  roundRect(TRASH.x + 16, TRASH.y + 28, TRASH.w - 36, TRASH.h - 70, 18);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font = "700 22px Fredoka, Nunito, sans-serif";
+  const label = hot ? "Toss" : "Trash";
+  const tw = ctx.measureText(label).width + 28;
+  roundRect(96 - tw / 2, TRASH.y + 8, tw, 36, 12);
+  ctx.fillStyle = hot ? "rgba(160, 32, 18, 0.94)" : "rgba(28, 16, 12, 0.82)";
+  ctx.fill();
+  ctx.fillStyle = "#fff6e8";
+  ctx.textAlign = "center";
+  ctx.fillText(label, 96, TRASH.y + 33);
+  ctx.restore();
+  if (found[0] && found[0].mark !== TRASH) ring(found[0].mark);
+}
+
+function drawThrows() {
+  for (const ball of S.throws) {
+    const scale = 1 + Math.min(0.8, ball.life * 0.045);
+    ctx.save();
+    ctx.translate(ball.x, ball.y);
+    ctx.rotate(ball.rot);
+    ctx.scale(scale, scale);
+    drawPlate(ball.plate, 0, 0, ball.kind);
+    ctx.restore();
+  }
+}
+
+function drawAnger() {
+  for (const slot of S.slots) {
+    const body = slot.body;
+    if (!body || body.state !== "wait" || body.mood < 3) continue;
+    ctx.save();
+    ctx.font = "700 44px Fredoka, Nunito, sans-serif";
+    ctx.fillStyle = "#ff3b30";
+    ctx.textAlign = "center";
+    ctx.fillText("!", body.x + 78, 86);
+    ctx.restore();
+  }
 }
 
 function drawToolCursor() {
@@ -1305,6 +1525,11 @@ function frame(now) {
     acc -= 1000 / 30;
   }
   ctx.clearRect(0, 0, W, H);
+  const shaking = S.screen === "play" && S.shake > 0;
+  if (shaking) {
+    ctx.save();
+    ctx.translate((Math.random() - 0.5) * S.shake, (Math.random() - 0.5) * S.shake);
+  }
   if (S.screen === "title") drawTitle();
   else if (S.screen === "end") drawEnd();
   else {
@@ -1312,8 +1537,11 @@ function frame(now) {
     drawPeople();
     drawFood();
     drawHand();
+    drawAim();
     drawToolCursor();
+    drawAnger();
     drawHud();
+    drawThrows();
     drawZones();
     if (S.paused && !S.banner) {
       ctx.fillStyle = "rgba(10,6,4,0.35)";
@@ -1325,6 +1553,7 @@ function frame(now) {
     }
     if (S.banner) drawBanner();
   }
+  if (shaking) ctx.restore();
   requestAnimationFrame(frame);
 }
 
@@ -1403,15 +1632,28 @@ window.__rush = {
       S.slots[index].body.items = S.slots[index].body.order.items;
     });
   },
+  burnDogs() {
+    S.dogs.forEach((dog) => {
+      if (dog) {
+        dog.state = 3;
+        dog.left = 40;
+      }
+    });
+  },
+  pause(on) { S.paused = on !== false; },
+  fly(n) { for (let i = 0; i < n; i++) tickThrows(); },
   step(n) { for (let i = 0; i < n; i++) sim(); },
   snapshot() {
     return {
       score: S.score,
+      meter: S.meter,
       screen: S.screen,
       buns: S.buns.map((bun) => (bun ? { ...bun } : null)),
       dogs: S.dogs.map((dog) => (dog ? { state: dog.state, left: dog.left } : null)),
+      rejects: S.rejects.map((item) => (item ? item.kind : null)),
+      throws: S.throws.length,
       crowd: S.crowd,
-      bodies: S.slots.map((slot) => (slot.body ? { type: slot.body.type, state: slot.body.state, items: slot.body.items, ketchup: slot.body.order.ketchup, snack: slot.body.order.snack } : null)),
+      bodies: S.slots.map((slot) => (slot.body ? { type: slot.body.type, state: slot.body.state, items: slot.body.items, mood: slot.body.mood, ketchup: slot.body.order.ketchup, snack: slot.body.order.snack } : null)),
       cash: S.slots.map((slot) => (slot.cash ? slot.cash.amount : 0)),
     };
   },
